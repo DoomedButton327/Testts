@@ -241,6 +241,8 @@
         <div class="hint" id="saveHint">
           <b>HOW:</b> touch and drag directly on the photo to draw a box around the item (earphones, keys,
           whatever). Works on any object — no fixed category list. Then tap <b>Save Selection</b> to name and store it.
+          <br><b>BLURRY?</b> quickly tap (don't drag) anywhere on a live camera preview to force it to refocus,
+          and hold the phone steady/close for a couple seconds before capturing.
         </div>
         <div class="row">
           <button class="primary" id="btnSaveSelection" disabled>Save Selection</button>
@@ -253,6 +255,11 @@
       <div class="controls" style="padding-bottom:0;">
         <div class="hint" style="margin-bottom:4px;">
           <b>STEP 1:</b> pick a saved item below (or import a signature file).
+        </div>
+        <div class="hint warn" style="margin-bottom:4px;">
+          <b>NOTE:</b> this uses a general-purpose vision model, not true object re-identification — it's
+          best at telling apart clearly different-looking objects, and less reliable when comparing two
+          items that look very similar. Save the item from a clear, well-lit, close-up photo for best results.
         </div>
         <div class="lib-grid" id="findLibGrid"></div>
         <div class="row">
@@ -436,14 +443,21 @@
     return s;
   }
 
-  async function embedCrop(sourceEl, box){
+  function clampBoxToSource(box, srcW, srcH){
+    const x = Math.max(0, Math.min(box.x, srcW-1));
+    const y = Math.max(0, Math.min(box.y, srcH-1));
+    const w = Math.max(1, Math.min(box.w, srcW-x));
+    const h = Math.max(1, Math.min(box.h, srcH-y));
+    return {x,y,w,h};
+  }
+
+  async function embedCrop(sourceEl, box, srcW, srcH){
     // box: {x,y,w,h} in source's natural pixel coords
     const crop = document.createElement('canvas');
     crop.width = 224; crop.height = 224;
     const cctx = crop.getContext('2d');
-    // guard against zero/negative sizes which throw on drawImage
-    const sw = Math.max(1, box.w), sh = Math.max(1, box.h);
-    cctx.drawImage(sourceEl, box.x, box.y, sw, sh, 0, 0, 224, 224);
+    const safe = (srcW && srcH) ? clampBoxToSource(box, srcW, srcH) : { x:box.x, y:box.y, w:Math.max(1,box.w), h:Math.max(1,box.h) };
+    cctx.drawImage(sourceEl, safe.x, safe.y, safe.w, safe.h, 0, 0, 224, 224);
     let embedding = null;
     if(model){
       const t = tf.tidy(()=>{
@@ -455,7 +469,41 @@
     }
     const hist = Array.from(colorHistFromCanvas(crop));
     const thumb = crop.toDataURL('image/jpeg', 0.7);
-    return { embedding, hist, thumb };
+    return { embedding, hist, thumb, box: safe };
+  }
+
+  function normalizeVec(v){
+    let n = 0; for(let i=0;i<v.length;i++) n += v[i]*v[i];
+    n = Math.sqrt(n) || 1;
+    return v.map(x=>x/n);
+  }
+
+  // Build a more robust "signature" for a saved item by averaging embeddings
+  // from THREE crops around the user's box (tighter / as-drawn / looser).
+  // A single crop is brittle — a slightly-off box gives a noticeably
+  // different embedding. Averaging several paddings makes later matching
+  // much less sensitive to exactly how the box was drawn.
+  async function embedSignature(sourceEl, box, srcW, srcH){
+    const paddings = [-0.12, 0, 0.25];
+    const embeddings = [];
+    let hist = null, thumb = null, usedBox = box;
+    for(let i=0;i<paddings.length;i++){
+      const p = paddings[i];
+      const padW = box.w*p, padH = box.h*p;
+      const pBox = { x: box.x-padW/2, y: box.y-padH/2, w: box.w+padW, h: box.h+padH };
+      const res = await embedCrop(sourceEl, pBox, srcW, srcH);
+      if(res.embedding) embeddings.push(normalizeVec(res.embedding));
+      if(i === 1){ hist = res.hist; thumb = res.thumb; usedBox = res.box; }
+    }
+    let avgEmbedding = null;
+    if(embeddings.length){
+      const len = embeddings[0].length;
+      avgEmbedding = new Array(len).fill(0);
+      embeddings.forEach(e=>{ for(let i=0;i<len;i++) avgEmbedding[i]+=e[i]; });
+      for(let i=0;i<len;i++) avgEmbedding[i] /= embeddings.length;
+      avgEmbedding = normalizeVec(avgEmbedding);
+    }
+    return { embedding: avgEmbedding, hist, thumb, box: usedBox, aspect: box.w/box.h };
   }
 
   function downloadJSON(obj, filename){
@@ -509,6 +557,48 @@
     window.addEventListener('resize', syncSize);
     window.addEventListener('orientationchange', ()=>setTimeout(syncSize,150));
 
+    // Tap-to-refocus: tapping the live camera preview nudges the hardware
+    // to re-run autofocus. Listened on stageWrap in the capture phase so it
+    // still sees the tap even through the draw-layer canvas.
+    let tapStartX=0, tapStartY=0, tapStartT=0;
+    stageWrap.addEventListener('pointerdown', (e)=>{
+      tapStartX = e.clientX; tapStartY = e.clientY; tapStartT = Date.now();
+    }, {capture:true});
+    stageWrap.addEventListener('pointerup', (e)=>{
+      const moved = Math.hypot(e.clientX-tapStartX, e.clientY-tapStartY);
+      const dt = Date.now()-tapStartT;
+      if(moved < 8 && dt < 300 && sourceIsVideo){ refocus(); }
+    }, {capture:true});
+
+    async function applyFocusSettings(){
+      if(!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if(!track || !track.getCapabilities) return;
+      try{
+        const caps = track.getCapabilities();
+        if(caps.focusMode && caps.focusMode.includes('continuous')){
+          await track.applyConstraints({ advanced:[{focusMode:'continuous'}] });
+        }
+      }catch(e){ /* not supported on this device/browser — silently ignore */ }
+    }
+
+    async function refocus(){
+      if(!stream) return;
+      const track = stream.getVideoTracks()[0];
+      if(!track || !track.getCapabilities) return;
+      try{
+        const caps = track.getCapabilities();
+        if(caps.focusMode && caps.focusMode.includes('single-shot')){
+          await track.applyConstraints({ advanced:[{focusMode:'single-shot'}] });
+          setTimeout(()=>{
+            if(caps.focusMode.includes('continuous')){
+              track.applyConstraints({ advanced:[{focusMode:'continuous'}] }).catch(()=>{});
+            }
+          }, 400);
+        }
+      }catch(e){ /* ignore */ }
+    }
+
     async function startCamera(){
       if(!window.isSecureContext){
         alert('Camera needs a secure (https) connection. This page is open as a local file, so the phone will never show a permission prompt. Host it (e.g. GitHub Pages) and open the https:// link, or use "Load Photo" instead.');
@@ -520,9 +610,17 @@
       }
       try{
         if(stream){ stream.getTracks().forEach(t=>t.stop()); }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video:{ facingMode:{ideal:'environment'} }, audio:false
-        });
+        const constraintAttempts = [
+          { video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}, focusMode:'continuous' }, audio:false },
+          { video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false },
+          { video:{ facingMode:{ideal:'environment'} }, audio:false }
+        ];
+        let lastErr = null;
+        for(const c of constraintAttempts){
+          try{ stream = await navigator.mediaDevices.getUserMedia(c); lastErr = null; break; }
+          catch(e){ lastErr = e; }
+        }
+        if(lastErr) throw lastErr;
         video.srcObject = stream;
         await video.play();
         video.style.display='block'; img.style.display='none';
@@ -530,6 +628,7 @@
         placeholder.style.display='none';
         ready = false;
         syncSize();
+        applyFocusSettings();
         opts.onSourceChange && opts.onSourceChange();
       }catch(e){
         let msg = 'Camera error: ' + e.message;
@@ -600,13 +699,14 @@
     }
 
     return {
-      startCamera, captureFrame, loadFile, clearOverlay, syncSize,
+      startCamera, captureFrame, loadFile, clearOverlay, syncSize, refocus,
       get sourceEl(){ return sourceEl; },
       get sourceIsVideo(){ return sourceIsVideo; },
       get ready(){ return ready; },
       set ready(v){ ready = v; },
       get ctx(){ return ctx; },
       get dctx(){ return dctx; },
+      get isStreaming(){ return !!stream; },
       stopStream
     };
   }
@@ -744,11 +844,14 @@
         w: box.w/scale,
         h: box.h/scale
       };
-      const {embedding, hist, thumb} = await embedCrop(sourceEl, nb);
-      const entry = { id: 'item_'+Date.now(), name, embedding, hist, thumb, createdAt: Date.now() };
+      btnSaveSel.disabled = true;
+      btnSaveSel.textContent = 'Processing...';
+      const {embedding, hist, thumb, aspect} = await embedSignature(sourceEl, nb, nat.w, nat.h);
+      btnSaveSel.textContent = 'Save Selection';
+      const entry = { id: 'item_'+Date.now(), name, embedding, hist, thumb, aspect, createdAt: Date.now() };
       items.push(entry);
       saveItems();
-      box = null; btnSaveSel.disabled = true; drawBox();
+      box = null; drawBox();
       renderLibrary(); renderFindLib();
       alert('Saved "'+name+'" to your library.');
     });
@@ -886,20 +989,51 @@
       fileInput.value = '';
     });
 
-    // generate candidate windows (multi-scale sliding windows) in natural pixel coords
-    function generateCandidates(natW, natH){
+    // Generate candidate windows in natural pixel coords. Uses the saved
+    // item's aspect ratio (if known) to bias window shapes toward it, and
+    // uses a finer step size than before so boxes can settle onto the
+    // item's real extent instead of a coarse grid.
+    function generateCandidates(natW, natH, targetAspect){
       const boxes = [];
-      const scales = [0.28, 0.45, 0.65];
+      const scales = [0.18, 0.28, 0.40, 0.55, 0.72];
+      const aspects = targetAspect ? [targetAspect, 1] : [1];
       scales.forEach(scale=>{
-        const bw = natW*scale, bh = natH*scale;
-        const stepX = bw*0.55, stepY = bh*0.55;
-        for(let y=0; y+bh<=natH+1; y+=stepY){
-          for(let x=0; x+bw<=natW+1; x+=stepX){
-            boxes.push({x:Math.round(x), y:Math.round(y), w:Math.round(bw), h:Math.round(bh)});
+        aspects.forEach(asp=>{
+          const area = (natW*scale) * (natH*scale);
+          let bw = Math.sqrt(area*asp), bh = Math.sqrt(area/asp);
+          bw = Math.min(bw, natW); bh = Math.min(bh, natH);
+          const stepX = bw*0.4, stepY = bh*0.4;
+          for(let y=0; y+bh<=natH+1; y+=stepY){
+            for(let x=0; x+bw<=natW+1; x+=stepX){
+              boxes.push({x:Math.round(x), y:Math.round(y), w:Math.round(bw), h:Math.round(bh)});
+            }
           }
-        }
+        });
       });
       return boxes;
+    }
+
+    // Local refinement: given a promising box, test a small neighborhood of
+    // nudged/resized variants around it and keep the best-scoring one. This
+    // is what lets the final box tighten onto the item instead of staying
+    // stuck on the coarse grid.
+    function refineCandidates(box, natW, natH){
+      const variants = [];
+      const nudges = [-0.15, 0, 0.15];
+      const scales = [0.85, 1, 1.15];
+      scales.forEach(sc=>{
+        nudges.forEach(nx=>{
+          nudges.forEach(ny=>{
+            const w = box.w*sc, h = box.h*sc;
+            const x = box.x + box.w*nx;
+            const y = box.y + box.h*ny;
+            if(x>=0 && y>=0 && x+w<=natW && y+h<=natH){
+              variants.push({x:Math.round(x), y:Math.round(y), w:Math.round(w), h:Math.round(h)});
+            }
+          });
+        });
+      });
+      return variants;
     }
 
     function iou(a,b){
@@ -943,31 +1077,72 @@
         btnSearch.disabled = false;
         return;
       }
-      const candidates = generateCandidates(nat.w, nat.h);
 
+      function scoreBox(embedding, hist, box){
+        let score = 0;
+        if(embedding && selectedItem.embedding){
+          score += cosineSim(embedding, selectedItem.embedding) * 0.68;
+        }
+        if(hist && selectedItem.hist){
+          score += histSim(hist, selectedItem.hist) * 0.22;
+        }
+        // Aspect-ratio penalty: a candidate shaped very differently from the
+        // saved item's box is probably the wrong thing even if the whole-image
+        // embedding happens to look similar in a general sense.
+        if(selectedItem.aspect){
+          const boxAspect = box.w/box.h;
+          const logDiff = Math.abs(Math.log(boxAspect/selectedItem.aspect));
+          const aspectScore = Math.max(0, 1 - logDiff/1.5);
+          score += aspectScore * 0.10;
+        }
+        return score;
+      }
+
+      // ---- Stage 1: coarse scan across the whole scene ----
+      const candidates = generateCandidates(nat.w, nat.h, selectedItem.aspect);
       const scored = [];
       for(let i=0;i<candidates.length;i++){
         const box = candidates[i];
         searchStatus.textContent = 'SCANNING SCENE... ' + (i+1) + '/' + candidates.length;
         try{
-          const {embedding, hist} = await embedCrop(sourceEl, box);
-          let score = 0;
-          if(embedding && selectedItem.embedding){
-            score += cosineSim(embedding, selectedItem.embedding) * 0.75;
-          }
-          if(hist && selectedItem.hist){
-            score += histSim(hist, selectedItem.hist) * 0.25;
-          }
-          scored.push({box, score});
+          const {embedding, hist} = await embedCrop(sourceEl, box, nat.w, nat.h);
+          scored.push({box, score: scoreBox(embedding, hist, box)});
         }catch(err){ /* skip a bad crop rather than aborting the whole scan */ }
         if(i % 6 === 0) await new Promise(r=>setTimeout(r,0));
       }
-
       scored.sort((a,b)=>b.score-a.score);
-      const kept = [];
+
+      // Take top coarse hits (well-separated) forward to stage 2.
+      const coarseTop = [];
       for(const s of scored){
+        if(coarseTop.length >= 6) break;
+        if(coarseTop.some(k=>iou(k.box, s.box) > 0.35)) continue;
+        coarseTop.push(s);
+      }
+
+      // ---- Stage 2: locally refine each top hit so the box tightens onto
+      // the item's real extent instead of staying on the coarse grid ----
+      searchStatus.textContent = 'REFINING MATCHES...';
+      const refined = [];
+      for(const hit of coarseTop){
+        const variants = refineCandidates(hit.box, nat.w, nat.h);
+        let best = hit;
+        for(const v of variants){
+          try{
+            const {embedding, hist} = await embedCrop(sourceEl, v, nat.w, nat.h);
+            const s = scoreBox(embedding, hist, v);
+            if(s > best.score) best = {box:v, score:s};
+          }catch(err){ /* skip */ }
+        }
+        refined.push(best);
+        await new Promise(r=>setTimeout(r,0));
+      }
+
+      refined.sort((a,b)=>b.score-a.score);
+      const kept = [];
+      for(const s of refined){
         if(kept.length >= 4) break;
-        if(kept.some(k=>iou(k.box, s.box) > 0.3)) continue;
+        if(kept.some(k=>iou(k.box, s.box) > 0.25)) continue;
         kept.push(s);
       }
       lastKept = kept;
