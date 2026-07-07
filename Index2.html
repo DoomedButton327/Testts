@@ -63,12 +63,13 @@
   .stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; }
   video, canvas, img.frame{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
   canvas{ pointer-events:none; }
-  #drawLayer{ position:absolute; inset:0; pointer-events:auto; cursor:crosshair; touch-action:none; }
+  [id^="drawLayer"]{ position:absolute; inset:0; pointer-events:auto; cursor:crosshair; touch-action:none; -webkit-user-select:none; user-select:none; }
 
   .placeholder{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     flex-direction:column; gap:10px; color:var(--steel); font-family:'Share Tech Mono',monospace;
     font-size:12px; letter-spacing:1px; text-align:center; padding:20px; z-index:2;
+    pointer-events:none;
   }
   .placeholder b{ color:var(--phosphor); font-family:'Orbitron',sans-serif; letter-spacing:2px; font-size:13px;}
 
@@ -431,13 +432,14 @@
       const c = document.createElement('canvas');
       c.width = video.videoWidth; c.height = video.videoHeight;
       c.getContext('2d').drawImage(video,0,0);
-      img.src = c.toDataURL('image/jpeg',0.9);
       img.onload = ()=>{
         video.style.display='none'; img.style.display='block';
         sourceEl = img; sourceIsVideo = false;
         if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+        placeholder.style.display='none';
         syncSize();
       };
+      img.src = c.toDataURL('image/jpeg',0.9);
     });
 
     fileInput.addEventListener('change', ()=>{
@@ -453,13 +455,13 @@
         placeholder.style.display='none';
         video.onloadedmetadata = syncSize;
       } else {
-        img.src = URL.createObjectURL(file);
         img.onload = ()=>{
           video.style.display='none'; img.style.display='block';
           sourceEl = img; sourceIsVideo = false;
           placeholder.style.display='none';
           syncSize();
         };
+        img.src = URL.createObjectURL(file);
       }
     });
 
@@ -470,6 +472,7 @@
     }
     drawLayer.addEventListener('pointerdown', (e)=>{
       if(!sourceEl) return;
+      e.preventDefault();
       drawing = true;
       const p = getPos(e);
       startX = p.x; startY = p.y;
@@ -477,6 +480,7 @@
     });
     drawLayer.addEventListener('pointermove', (e)=>{
       if(!drawing) return;
+      e.preventDefault();
       const p = getPos(e);
       box = { x: Math.min(startX,p.x), y: Math.min(startY,p.y), w: Math.abs(p.x-startX), h: Math.abs(p.y-startY) };
       drawBox();
@@ -686,24 +690,24 @@
       const c = document.createElement('canvas');
       c.width = video.videoWidth; c.height = video.videoHeight;
       c.getContext('2d').drawImage(video,0,0);
-      img.src = c.toDataURL('image/jpeg',0.9);
       img.onload = ()=>{
         video.style.display='none'; img.style.display='block';
         sourceEl = img; sourceIsVideo = false;
         if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
         sceneReady = true;
         updateSearchEnabled();
+        placeholder.style.display='none';
         syncSize();
         ctx.clearRect(0,0,overlay.width,overlay.height);
         resultsEl.innerHTML = '';
       };
+      img.src = c.toDataURL('image/jpeg',0.9);
     });
 
     fileInput.addEventListener('change', ()=>{
       const file = fileInput.files[0];
       if(!file) return;
       if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-      img.src = URL.createObjectURL(file);
       img.onload = ()=>{
         video.style.display='none'; img.style.display='block';
         sourceEl = img; sourceIsVideo = false;
@@ -714,6 +718,7 @@
         ctx.clearRect(0,0,overlay.width,overlay.height);
         resultsEl.innerHTML = '';
       };
+      img.src = URL.createObjectURL(file);
     });
 
     // generate candidate windows (multi-scale sliding windows) in natural pixel coords
