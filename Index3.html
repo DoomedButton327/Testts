@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>HomeSpot Inventory</title>
+  <!-- JsBarcode for generating barcodes -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <!-- html5-qrcode for scanning barcodes -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    body {
+      background: #f5f5f7;
+      color: #1d1d1f;
+      padding: 0 0 20px;
+      max-width: 500px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+    header {
+      background: #fff;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+    button, .btn {
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:active { opacity: 0.8; }
+    .btn-outline {
+      background: transparent;
+      color: #007aff;
+      border: 1px solid #007aff;
+    }
+    .btn-danger { background: #ff3b30; }
+    .btn-small { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      margin: 12px 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .sector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 0 16px;
+    }
+    .sector-card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .sector-card:active { transform: scale(0.98); }
+    .sector-img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      background: #eee;
+      display: block;
+    }
+    .sector-name {
+      padding: 10px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .item-thumb {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: #e0e0e0;
+    }
+    .item-info {
+      flex: 1;
+    }
+    .item-name {
+      font-weight: 600;
+    }
+    .badge {
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .badge-out { background: #ff3b30; color: white; }
+    .badge-in { background: #34c759; color: white; }
+    .flex-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 30px;
+      border: 1px solid #dcdcdc;
+      font-size: 1rem;
+      margin: 8px 0;
+      background: #fff;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .hidden { display: none !important; }
+    #scanner-container {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    input[type="file"] { display: none; }
+    .camera-btn {
+      background: #e9e9ef;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    hr { margin: 12px 0; border: 0.5px solid #eee; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>📦 Spots</h1>
+  <div style="display:flex; gap:8px;">
+    <button id="pullBtn" class="btn-outline btn-small" title="Pull from GitHub">⬇️</button>
+    <button id="pushBtn" class="btn-outline btn-small" title="Push to GitHub">⬆️</button>
+    <button id="scanBtn" class="btn-small">📷</button>
+    <button id="settingsBtn" class="btn-outline btn-small">⚙️</button>
+  </div>
+</header>
+
+<div id="mainView">
+  <!-- Sector list -->
+  <div id="sectorsContainer" class="sector-grid"></div>
+  <div class="card" style="text-align:center;">
+    <button id="addSectorBtn">➕ Add New Spot</button>
+  </div>
+</div>
+
+<!-- Sector Detail View (hidden by default) -->
+<div id="sectorDetailView" class="hidden">
+  <div class="card">
+    <button id="backToSectors" class="btn-outline btn-small">← Back</button>
+    <h2 id="detailSectorName"></h2>
+    <img id="detailSectorImg" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin:8px 0;">
+    <div class="flex-row">
+      <button id="printBarcodeBtn" class="btn-outline btn-small">🏷️ Print Barcode</button>
+      <button id="scanItemInSectorBtn" class="btn-small">📷 Scan Item</button>
+      <button id="moveFromSectorBtn" class="btn-outline btn-small">↗️ Move Item (scan dest)</button>
+    </div>
+    <input type="text" id="itemSearchInSector" placeholder="Search items..." class="search-input">
+  </div>
+  <div id="itemsList" class="card"></div>
+  <div class="card"><button id="addItemBtn">➕ Add Item</button></div>
+</div>
+
+<!-- Search View -->
+<div id="searchView" class="hidden">
+  <div class="card">
+    <button id="backFromSearch" class="btn-outline btn-small">← Back</button>
+    <input type="text" id="globalSearch" placeholder="Search all items..." class="search-input">
+    <div id="searchResults"></div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="modal" class="modal hidden">
+  <div class="modal-content" id="modalContent"></div>
+</div>
+
+<!-- Scanner Modal -->
+<div id="scannerModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Scan Barcode</h3>
+    <div id="scanner-container"></div>
+    <button id="stopScanner" class="btn-danger btn-small" style="margin-top:12px;">Stop Scanner</button>
+    <p id="scannerHint" style="font-size:0.8rem; margin-top:8px;"></p>
+  </div>
+</div>
+
+<script>
+  // ========== CONFIGURATION ==========
+  // Hardcode your Discord webhook URL here, or leave empty.
+  const DISCORD_WEBHOOK_URL = '';
+  
+  // Default GitHub repo settings (user will input in Settings)
+  let GITHUB_OWNER = '';
+  let GITHUB_REPO = '';
+  let GITHUB_BRANCH = 'main';
+  let GITHUB_TOKEN = '';
+  const DATA_FILE_PATH = 'data.json';
+
+  // ========== GLOBAL STATE ==========
+  let sectors = [];
+  let currentSectorId = null;
+  let scannerInstance = null;
+  let scanCallback = null; // function(code) => void
+  let moveSourceItemId = null; // for move flow
+
+  // ========== UTILS ==========
+  function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+  function saveToLocal() { localStorage.setItem('homespot_data', JSON.stringify(sectors)); }
+  function loadFromLocal() {
+    const d = localStorage.getItem('homespot_data');
+    if (d) sectors = JSON.parse(d);
+  }
+  function saveConfig() {
+    const cfg = { GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TOKEN };
+    localStorage.setItem('homespot_config', JSON.stringify(cfg));
+  }
+  function loadConfig() {
+    const c = localStorage.getItem('homespot_config');
+    if (c) {
+      const cfg = JSON.parse(c);
+      GITHUB_OWNER = cfg.GITHUB_OWNER || '';
+      GITHUB_REPO = cfg.GITHUB_REPO || '';
+      GITHUB_BRANCH = cfg.GITHUB_BRANCH || 'main';
+      GITHUB_TOKEN = cfg.GITHUB_TOKEN || '';
+    }
+  }
+
+  async function compressImage(file, maxWidth = 600, quality = 0.6) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width, height = img.height;
+          if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function sendDiscord(message) {
+    if (!DISCORD_WEBHOOK_URL) return;
+    fetch(DISCORD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    }).catch(e => console.warn('Discord webhook failed', e));
+  }
+
+  // ========== GITHUB SYNC ==========
+  async function fetchFileSha() {
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+    const res = await fetch(url, { headers: { Authorization: `token ${GITHUB_TOKEN}` } });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+    const data = await res.json();
+    return data.sha;
+  }
+
+  async function pushToGitHub() {
+    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
+      alert('Configure GitHub settings first.');
+      return;
+    }
+    try {
+      const json = JSON.stringify(sectors, null, 2);
+      const base64Content = btoa(unescape(encodeURIComponent(json)));
+      let sha = null;
+      try { sha = await fetchFileSha(); } catch (e) { /* ignore */ }
+      const body = {
+        message: 'Manual inventory update',
+        content: base64Content,
+        branch: GITHUB_BRANCH
+      };
+      if (sha) body.sha = sha;
+      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE_PATH}`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error(`Push failed: ${res.status}`);
+      alert('✅ Data pushed to GitHub!');
+    } catch (err) {
+      alert('Push error: ' + err.message);
+    }
+  }
+
+  async function pullFromGitHub() {
+    if (!GITHUB_TOKEN || !GITHUB_OWNER || !GITHUB_REPO) {
+      alert('Configure GitHub settings first.');
+      return;
+    }
+    try {
+      const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${DATA_FILE_PATH}?ref=${GITHUB_BRANCH}`;
+      const res = await fetch(url, { headers: { Authorization: `token ${GITHUB_TOKEN}` } });
+      if (res.status === 404) { sectors = []; saveToLocal(); renderAll(); alert('No data file found, starting fresh.'); return; }
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const data = await res.json();
+      const content = decodeURIComponent(escape(atob(data.content)));
+      sectors = JSON.parse(content);
+      saveToLocal();
+      renderAll();
+      alert('✅ Data pulled from GitHub!');
+    } catch (err) {
+      alert('Pull error: ' + err.message);
+    }
+  }
+
+  // ========== RENDERING ==========
+  function renderSectors() {
+    const container = document.getElementById('sectorsContainer');
+    container.innerHTML = sectors.map(s => `
+      <div class="sector-card" data-id="${s.id}" onclick="openSector('${s.id}')">
+        ${s.photo ? `<img src="${s.photo}" class="sector-img">` : '<div class="sector-img" style="display:flex;align-items:center;justify-content:center;">📷</div>'}
+        <div class="sector-name">${s.name}</div>
+      </div>
+    `).join('');
+  }
+
+  function openSector(id) {
+    currentSectorId = id;
+    document.getElementById('mainView').classList.add('hidden');
+    document.getElementById('sectorDetailView').classList.remove('hidden');
+    document.getElementById('searchView').classList.add('hidden');
+    renderSectorDetail();
+  }
+
+  function renderSectorDetail() {
+    const sector = sectors.find(s => s.id === currentSectorId);
+    if (!sector) return;
+    document.getElementById('detailSectorName').textContent = sector.name;
+    document.getElementById('detailSectorImg').src = sector.photo || '';
+    document.getElementById('detailSectorImg').style.display = sector.photo ? 'block' : 'none';
+    const searchTerm = document.getElementById('itemSearchInSector')?.value?.toLowerCase() || '';
+    let items = sector.items || [];
+    if (searchTerm) items = items.filter(i => i.name.toLowerCase().includes(searchTerm) || (i.barcode && i.barcode.includes(searchTerm)));
+    const list = document.getElementById('itemsList');
+    list.innerHTML = items.map(item => `
+      <div class="item-row">
+        ${item.photo ? `<img src="${item.photo}" class="item-thumb">` : '<div class="item-thumb" style="display:flex;align-items:center;justify-content:center;">📦</div>'}
+        <div class="item-info">
+          <div class="item-name">${item.name} ${item.barcode ? '<span style="font-size:0.7rem;">('+item.barcode+')</span>' : ''}</div>
+          <span class="badge ${item.removed ? 'badge-out' : 'badge-in'}">${item.removed ? 'OUT' : 'IN STOCK'}</span>
+        </div>
+        <div class="flex-row">
+          ${item.removed ? 
+            `<button class="btn-small btn-outline" onclick="toggleItemStock('${item.id}')">↩️ Return</button>` :
+            `<button class="btn-small btn-danger" onclick="toggleItemStock('${item.id}')">📤 Take</button>`
+          }
+          <button class="btn-small btn-outline" onclick="deleteItem('${item.id}')">🗑️</button>
+          <button class="btn-small btn-outline" onclick="startMoveItem('${item.id}')">↗️</button>
+        </div>
+      </div>
+    `).join('') || '<p>No items yet.</p>';
+  }
+
+  function renderAll() {
+    renderSectors();
+    if (!document.getElementById('sectorDetailView').classList.contains('hidden')) renderSectorDetail();
+    if (!document.getElementById('searchView').classList.contains('hidden')) performGlobalSearch();
+  }
+
+  // ========== SECTOR ACTIONS ==========
+  function addSector() {
+    const name = prompt('Spot name (e.g. Shelf A):');
+    if (!name) return;
+    const id = generateId();
+    const barcode = 'SPOT-' + id.slice(-8).toUpperCase();
+    const sector = { id, name, barcode, photo: '', items: [], created: new Date().toISOString() };
+    sectors.push(sector);
+    saveToLocal();
+    renderSectors();
+    takePhotoForSector(id);
+  }
+
+  async function takePhotoForSector(sectorId) {
+    const file = await selectImageFile();
+    if (!file) return;
+    const dataUrl = await compressImage(file, 800, 0.7);
+    const sector = sectors.find(s => s.id === sectorId);
+    if (sector) { sector.photo = dataUrl; saveToLocal(); renderAll(); }
+  }
+
+  function selectImageFile() {
+    return new Promise(resolve => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.onchange = () => resolve(input.files[0] || null);
+      input.click();
+    });
+  }
+
+  // ========== ITEM ACTIONS ==========
+  async function addItemToSector() {
+    if (!currentSectorId) return;
+    const name = prompt('Item name:');
+    if (!name) return;
+    const item = {
+      id: generateId(),
+      name,
+      barcode: '',
+      photo: '',
+      removed: false,
+      addedTimestamp: new Date().toISOString()
+    };
+    const sector = sectors.find(s => s.id === currentSectorId);
+    sector.items.push(item);
+    saveToLocal();
+    renderSectorDetail();
+    const takePic = confirm('Take photo of this item?');
+    if (takePic) {
+      const file = await selectImageFile();
+      if (file) {
+        const dataUrl = await compressImage(file, 400, 0.6);
+        item.photo = dataUrl;
+        saveToLocal();
+        renderSectorDetail();
+      }
+    }
+    sendDiscord(`📦 Item "${item.name}" added to spot "${sector.name}"`);
+  }
+
+  function toggleItemStock(itemId) {
+    const sector = sectors.find(s => s.id === currentSectorId);
+    const item = sector.items.find(i => i.id === itemId);
+    if (!item) return;
+    item.removed = !item.removed;
+    if (item.removed) item.removedTimestamp = new Date().toISOString();
+    else delete item.removedTimestamp;
+    saveToLocal();
+    renderSectorDetail();
+    const status = item.removed ? 'taken off shelf (OUT)' : 'returned to shelf (IN STOCK)';
+    sendDiscord(`🔄 Item "${item.name}" in spot "${sector.name}" is now ${status}`);
+  }
+
+  function deleteItem(itemId) {
+    if (!confirm('Permanently delete this item?')) return;
+    const sector = sectors.find(s => s.id === currentSectorId);
+    const item = sector.items.find(i => i.id === itemId);
+    sector.items = sector.items.filter(i => i.id !== itemId);
+    saveToLocal();
+    renderSectorDetail();
+    sendDiscord(`🗑️ Item "${item?.name}" permanently deleted from "${sector.name}"`);
+  }
+
+  function startMoveItem(itemId) {
+    const sector = sectors.find(s => s.id === currentSectorId);
+    const item = sector.items.find(i => i.id === itemId);
+    if (!item) return;
+    moveSourceItemId = itemId;
+    alert('Now scan the destination spot barcode to move this item.');
+    startScanner((code) => {
+      const destSector = sectors.find(s => s.barcode === code);
+      if (!destSector) { alert('Destination spot not found.'); return; }
+      if (destSector.id === currentSectorId) { alert('Same spot.'); return; }
+      // Move item
+      const sourceSector = sectors.find(s => s.id === currentSectorId);
+      const movingItem = sourceSector.items.find(i => i.id === moveSourceItemId);
+      sourceSector.items = sourceSector.items.filter(i => i.id !== moveSourceItemId);
+      destSector.items.push(movingItem);
+      moveSourceItemId = null;
+      saveToLocal();
+      stopScanner();
+      renderAll();
+      sendDiscord(`↗️ Moved item "${movingItem.name}" from "${sourceSector.name}" to "${destSector.name}"`);
+      closeScannerModal();
+    }, 'Scan destination barcode');
+  }
+
+  // ========== SCANNER ==========
+  function startScanner(callback, hint = '') {
+    scanCallback = callback;
+    document.getElementById('scannerHint').textContent = hint;
+    document.getElementById('scannerModal').classList.remove('hidden');
+    const container = document.getElementById('scanner-container');
+    container.innerHTML = '';
+    scannerInstance = new Html5Qrcode("scanner-container");
+    scannerInstance.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        if (scanCallback) {
+          scanCallback(decodedText);
+        }
+      },
+      () => {}
+    ).catch(err => alert('Camera error: ' + err));
+  }
+
+  function stopScanner() {
+    if (scannerInstance) {
+      scannerInstance.stop().then(() => { scannerInstance = null; }).catch(e => console.warn(e));
+    }
+    scanCallback = null;
+  }
+
+  function closeScannerModal() {
+    stopScanner();
+    document.getElementById('scannerModal').classList.add('hidden');
+  }
+
+  // ========== BARCODE PRINT ==========
+  function printSectorBarcode() {
+    const sector = sectors.find(s => s.id === currentSectorId);
+    if (!sector) return;
+    const modal = document.getElementById('modal');
+    document.getElementById('modalContent').innerHTML = `
+      <h3>Print Barcode</h3>
+      <svg id="barcodeSvg"></svg>
+      <p style="margin-top:8px;">${sector.name} - ${sector.barcode}</p>
+      <button onclick="window.print();" class="btn-small">🖨️ Print</button>
+      <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-outline btn-small">Close</button>
+    `;
+    modal.classList.remove('hidden');
+    JsBarcode("#barcodeSvg", sector.barcode, { format: "CODE128", width: 2, height: 50, displayValue: true });
+  }
+
+  // ========== SCAN ITEM IN SECTOR ==========
+  function scanItemInCurrentSector() {
+    startScanner((code) => {
+      const sector = sectors.find(s => s.id === currentSectorId);
+      const item = sector.items.find(i => i.barcode === code);
+      if (!item) { alert('No item with that barcode in this spot.'); return; }
+      // Toggle stock or ask
+      if (item.removed) {
+        if (confirm(`Item "${item.name}" is currently OUT. Return to shelf?`)) toggleItemStock(item.id);
+      } else {
+        if (confirm(`Take "${item.name}" off shelf?`)) toggleItemStock(item.id);
+      }
+      stopScanner();
+      closeScannerModal();
+    }, 'Scan item barcode');
+  }
+
+  // ========== GLOBAL SEARCH ==========
+  function performGlobalSearch() {
+    const term = document.getElementById('globalSearch').value.toLowerCase();
+    const results = [];
+    sectors.forEach(s => {
+      s.items.forEach(item => {
+        if (item.name.toLowerCase().includes(term) || (item.barcode && item.barcode.includes(term))) {
+          results.push({ sector: s, item });
+        }
+      });
+    });
+    const container = document.getElementById('searchResults');
+    container.innerHTML = results.map(r => `
+      <div class="item-row" style="cursor:pointer" onclick="openSector('${r.sector.id}')">
+        <div>📍${r.sector.name}</div>
+        <div>${r.item.name} ${r.item.removed ? '<span class="badge badge-out">OUT</span>' : ''}</div>
+      </div>
+    `).join('') || '<p>No items found.</p>';
+  }
+
+  // ========== EVENT LISTENERS ==========
+  document.getElementById('addSectorBtn').addEventListener('click', addSector);
+  document.getElementById('backToSectors').addEventListener('click', () => {
+    document.getElementById('sectorDetailView').classList.add('hidden');
+    document.getElementById('mainView').classList.remove('hidden');
+    currentSectorId = null;
+  });
+  document.getElementById('addItemBtn').addEventListener('click', addItemToSector);
+  document.getElementById('printBarcodeBtn').addEventListener('click', printSectorBarcode);
+  document.getElementById('scanItemInSectorBtn').addEventListener('click', scanItemInCurrentSector);
+  document.getElementById('moveFromSectorBtn').addEventListener('click', () => {
+    const sector = sectors.find(s => s.id === currentSectorId);
+    if (!sector || sector.items.length === 0) { alert('No items to move.'); return; }
+    const itemId = prompt('Enter item ID or name to move (or select from list)');
+    const item = sector.items.find(i => i.id === itemId || i.name === itemId);
+    if (!item) { alert('Item not found.'); return; }
+    startMoveItem(item.id);
+  });
+  document.getElementById('itemSearchInSector').addEventListener('input', renderSectorDetail);
+  document.getElementById('globalSearch').addEventListener('input', performGlobalSearch);
+  document.getElementById('scanBtn').addEventListener('click', () => {
+    startScanner((code) => {
+      const sector = sectors.find(s => s.barcode === code);
+      if (sector) {
+        stopScanner();
+        closeScannerModal();
+        openSector(sector.id);
+      } else {
+        alert('No spot found with that barcode.');
+      }
+    }, 'Scan spot barcode');
+  });
+  document.getElementById('stopScanner').addEventListener('click', closeScannerModal);
+  document.getElementById('pushBtn').addEventListener('click', pushToGitHub);
+  document.getElementById('pullBtn').addEventListener('click', pullFromGitHub);
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    const modal = document.getElementById('modal');
+    document.getElementById('modalContent').innerHTML = `
+      <h3>Settings</h3>
+      <label>GitHub Owner: <input id="cfgOwner" value="${GITHUB_OWNER}" class="search-input"></label>
+      <label>GitHub Repo: <input id="cfgRepo" value="${GITHUB_REPO}" class="search-input"></label>
+      <label>Branch: <input id="cfgBranch" value="${GITHUB_BRANCH}" class="search-input"></label>
+      <label>GitHub PAT: <input id="cfgToken" type="password" value="${GITHUB_TOKEN}" class="search-input"></label>
+      <label>Discord Webhook: <input id="cfgWebhook" value="${DISCORD_WEBHOOK_URL}" class="search-input"></label>
+      <button id="saveCfg" class="btn-small">Save</button>
+      <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-outline btn-small">Close</button>
+    `;
+    modal.classList.remove('hidden');
+    document.getElementById('saveCfg').addEventListener('click', () => {
+      GITHUB_OWNER = document.getElementById('cfgOwner').value;
+      GITHUB_REPO = document.getElementById('cfgRepo').value;
+      GITHUB_BRANCH = document.getElementById('cfgBranch').value || 'main';
+      GITHUB_TOKEN = document.getElementById('cfgToken').value;
+      // Update Discord webhook (hardcoded constant might be overridden)
+      window.DISCORD_WEBHOOK_URL = document.getElementById('cfgWebhook').value;
+      saveConfig();
+      modal.classList.add('hidden');
+    });
+  });
+
+  // Search view navigation
+  document.getElementById('backFromSearch').addEventListener('click', () => {
+    document.getElementById('searchView').classList.add('hidden');
+    document.getElementById('mainView').classList.remove('hidden');
+  });
+  // Add a search icon in header? We'll add a quick button by long press on title or just a button
+  const searchNavBtn = document.createElement('button');
+  searchNavBtn.textContent = '🔍';
+  searchNavBtn.className = 'btn-outline btn-small';
+  searchNavBtn.addEventListener('click', () => {
+    document.getElementById('mainView').classList.add('hidden');
+    document.getElementById('sectorDetailView').classList.add('hidden');
+    document.getElementById('searchView').classList.remove('hidden');
+    performGlobalSearch();
+  });
+  document.querySelector('header div').prepend(searchNavBtn);
+
+  // Initial load
+  loadConfig();
+  loadFromLocal();
+  renderSectors();
+</script>
+</body>
+</html>
