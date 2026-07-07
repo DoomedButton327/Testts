@@ -257,9 +257,10 @@
           <b>STEP 1:</b> pick a saved item below (or import a signature file).
         </div>
         <div class="hint warn" style="margin-bottom:4px;">
-          <b>NOTE:</b> this uses a general-purpose vision model, not true object re-identification — it's
-          best at telling apart clearly different-looking objects, and less reliable when comparing two
-          items that look very similar. Save the item from a clear, well-lit, close-up photo for best results.
+          <b>NOTE:</b> this uses CLIP, a vision model that's noticeably better than the original version at
+          telling similar-looking items apart — but it's still not perfect instance recognition. Save the
+          item from a clear, well-lit, close-up photo for best results, and expect it to occasionally mix up
+          near-identical items.
         </div>
         <div class="lib-grid" id="findLibGrid"></div>
         <div class="row">
@@ -301,6 +302,7 @@
     <div class="panel" id="panel-library">
       <div class="controls">
         <div class="hint" style="margin-bottom:4px;">Saved items are auto-stored in this browser. Export to back up or move to another device / GitHub.</div>
+        <div class="hint warn" id="staleWarning" style="display:none; margin-bottom:4px;"></div>
         <div class="lib-grid" id="libGrid"></div>
         <div class="row">
           <button id="btnExportAll">Export All (.json)</button>
@@ -326,13 +328,21 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script type="module">
+  import { AutoProcessor, CLIPVisionModelWithProjection, RawImage, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0';
+  // Force WASM/WebGPU model files to load from the CDN cache, not attempt
+  // any local file access (this app has no server).
+  env.allowLocalModels = false;
+  window.__recallClip = { AutoProcessor, CLIPVisionModelWithProjection, RawImage };
+  window.dispatchEvent(new Event('recall-clip-module-ready'));
+</script>
 <script>
 (function(){
   const STORAGE_KEY = 'recall_items_v1';
+  const EMBED_MODEL_TAG = 'clip-vit-base-patch16'; // bump if the embedding model ever changes again
   let model = null;
   let items = [];
+  let staleItemCount = 0;
 
   // ---------------- secure context check ----------------
   // getUserMedia silently refuses to even prompt unless the page is served over
@@ -348,6 +358,11 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       items = raw ? JSON.parse(raw) : [];
     }catch(e){ items = []; }
+    // Items saved under the old MobileNet model have embeddings from a
+    // completely different vector space — comparing them against new CLIP
+    // embeddings would silently produce meaningless scores. Flag them
+    // rather than let matching quietly fail.
+    staleItemCount = items.filter(it => it.embedding && it.embeddingModel !== EMBED_MODEL_TAG).length;
   }
   function saveItems(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
@@ -356,19 +371,26 @@
   loadItems();
 
   // ---------------- model ----------------
+  // Using CLIP's vision encoder (via transformers.js / ONNX Runtime Web) instead
+  // of MobileNet. MobileNet was trained purely to classify into 1000 fixed
+  // categories, so its embeddings cluster by "what kind of object" rather than
+  // "which specific object" — bad for telling your earphones apart from any
+  // other earphones. CLIP's embedding space was trained to capture much finer
+  // visual detail, which makes it noticeably better at this kind of
+  // instance-matching task. It's a bigger one-time download (~90MB, cached by
+  // the browser after first load) and a bit slower per-crop, in exchange for
+  // real accuracy gains.
   const modelStatus = document.getElementById('modelStatus');
   function setStatus(text, cls){
     modelStatus.textContent = text;
     modelStatus.classList.remove('live','fail');
     if(cls) modelStatus.classList.add(cls);
   }
-  setStatus('MODEL: LOADING', null);
+  setStatus('MODEL: LOADING (~90MB, first time only)', null);
 
-  // Give the CDN a time limit — on some mobile networks/browsers the script
-  // tags load but the library never initializes, and the pill was previously
-  // left blank/stuck forever with no explanation.
+  let clipProcessor = null, clipVisionModel = null, RawImageCls = null;
   let modelSettled = false;
-  const MODEL_TIMEOUT_MS = 20000;
+  const MODEL_TIMEOUT_MS = 60000; // CLIP is a bigger download than MobileNet was
   setTimeout(()=>{
     if(!modelSettled){
       modelSettled = true;
@@ -376,26 +398,37 @@
     }
   }, MODEL_TIMEOUT_MS);
 
-  function initModel(){
-    if(typeof tf === 'undefined' || typeof mobilenet === 'undefined'){
+  async function initModel(){
+    if(!window.__recallClip){
+      // module script hasn't finished evaluating yet — wait for its ready event
+      await new Promise(resolve=>{
+        window.addEventListener('recall-clip-module-ready', resolve, {once:true});
+        setTimeout(resolve, 5000); // don't hang forever if it never fires
+      });
+    }
+    if(!window.__recallClip){
       modelSettled = true;
       setStatus('MODEL: FAILED (CDN BLOCKED)', 'fail');
       return;
     }
-    mobilenet.load({version:2, alpha:1.0}).then(m=>{
+    try{
+      const { AutoProcessor, CLIPVisionModelWithProjection, RawImage } = window.__recallClip;
+      RawImageCls = RawImage;
+      const MODEL_ID = 'Xenova/clip-vit-base-patch16';
+      setStatus('MODEL: LOADING PROCESSOR...', null);
+      clipProcessor = await AutoProcessor.from_pretrained(MODEL_ID);
+      setStatus('MODEL: LOADING WEIGHTS...', null);
+      clipVisionModel = await CLIPVisionModelWithProjection.from_pretrained(MODEL_ID, { dtype: 'q8' });
       modelSettled = true;
-      model = m;
-      setStatus('MODEL: READY', 'live');
-    }).catch(err=>{
+      model = true; // truthy flag used elsewhere to gate UI on "model ready"
+      setStatus('MODEL: READY (CLIP)', 'live');
+    }catch(err){
       modelSettled = true;
       setStatus('MODEL: FAILED', 'fail');
-      console.error('mobilenet load error', err);
-    });
+      console.error('CLIP load error', err);
+    }
   }
-  // run after the current tick so the "typeof tf" check reflects whether the
-  // CDN scripts actually finished executing, not just that the tags exist
   window.addEventListener('load', initModel);
-  // fallback in case 'load' already fired
   if(document.readyState === 'complete') initModel();
 
   // ---------------- tabs ----------------
@@ -459,13 +492,16 @@
     const safe = (srcW && srcH) ? clampBoxToSource(box, srcW, srcH) : { x:box.x, y:box.y, w:Math.max(1,box.w), h:Math.max(1,box.h) };
     cctx.drawImage(sourceEl, safe.x, safe.y, safe.w, safe.h, 0, 0, 224, 224);
     let embedding = null;
-    if(model){
-      const t = tf.tidy(()=>{
-        const imgT = tf.browser.fromPixels(crop);
-        return model.infer(imgT, true);
-      });
-      embedding = Array.from(await t.data());
-      t.dispose();
+    if(clipProcessor && clipVisionModel && RawImageCls){
+      try{
+        const rawImg = RawImageCls.fromCanvas(crop);
+        const inputs = await clipProcessor(rawImg);
+        const output = await clipVisionModel(inputs);
+        // image_embeds: [1, projection_dim] tensor from CLIP's projection head
+        embedding = Array.from(output.image_embeds.data);
+      }catch(err){
+        console.error('CLIP embed error', err);
+      }
     }
     const hist = Array.from(colorHistFromCanvas(crop));
     const thumb = crop.toDataURL('image/jpeg', 0.7);
@@ -848,7 +884,7 @@
       btnSaveSel.textContent = 'Processing...';
       const {embedding, hist, thumb, aspect} = await embedSignature(sourceEl, nb, nat.w, nat.h);
       btnSaveSel.textContent = 'Save Selection';
-      const entry = { id: 'item_'+Date.now(), name, embedding, hist, thumb, aspect, createdAt: Date.now() };
+      const entry = { id: 'item_'+Date.now(), name, embedding, hist, thumb, aspect, embeddingModel: EMBED_MODEL_TAG, createdAt: Date.now() };
       items.push(entry);
       saveItems();
       box = null; drawBox();
@@ -862,15 +898,25 @@
   // =========================================================
   function renderLibrary(){
     const grid = document.getElementById('libGrid');
+    const staleWarning = document.getElementById('staleWarning');
+    staleItemCount = items.filter(it => it.embedding && it.embeddingModel !== EMBED_MODEL_TAG).length;
+    if(staleItemCount > 0){
+      staleWarning.style.display = 'block';
+      staleWarning.innerHTML = '<b>UPDATE NEEDED:</b> ' + staleItemCount + ' item(s) below were saved with the old ' +
+        'recognition model and won\'t match well anymore (marked <b>OLD</b>). Open Save Item and re-save them for accurate results.';
+    } else {
+      staleWarning.style.display = 'none';
+    }
     grid.innerHTML = '';
     if(items.length === 0){
       grid.innerHTML = '<div class="lib-empty">No saved items yet. Use Save Item to add one.</div>';
       return;
     }
     items.forEach(it=>{
+      const isStale = it.embedding && it.embeddingModel !== EMBED_MODEL_TAG;
       const el = document.createElement('div');
       el.className = 'lib-item';
-      el.innerHTML = `<img src="${it.thumb}"><div class="name">${escapeHtml(it.name)}</div><button class="del">&times;</button>`;
+      el.innerHTML = `<img src="${it.thumb}">${isStale ? '<div class="tag" style="color:var(--amber);">OLD</div>' : ''}<div class="name">${escapeHtml(it.name)}</div><button class="del">&times;</button>`;
       el.querySelector('.del').addEventListener('click', (e)=>{
         e.stopPropagation();
         if(confirm('Delete "'+it.name+'"?')){
@@ -923,9 +969,10 @@
       return;
     }
     items.forEach(it=>{
+      const isStale = it.embedding && it.embeddingModel !== EMBED_MODEL_TAG;
       const el = document.createElement('div');
       el.className = 'lib-item' + (selectedItem && selectedItem.id===it.id ? ' selected' : '');
-      el.innerHTML = `<img src="${it.thumb}"><div class="name">${escapeHtml(it.name)}</div>`;
+      el.innerHTML = `<img src="${it.thumb}">${isStale ? '<div class="tag" style="color:var(--amber);">OLD</div>' : ''}<div class="name">${escapeHtml(it.name)}</div>`;
       el.addEventListener('click', ()=>{
         selectedItem = it;
         renderFindLib();
@@ -1063,6 +1110,11 @@
       if(!model){
         alert('The recognition model has not finished loading yet (check the status pill top-right). Wait a moment and try again.');
         return;
+      }
+      if(selectedItem.embedding && selectedItem.embeddingModel !== EMBED_MODEL_TAG){
+        const proceed = confirm('This item was saved with the old recognition model and won\'t match well ' +
+          'against the current one. Go to Save Item and re-save it for accurate results.\n\nSearch anyway?');
+        if(!proceed) return;
       }
       btnSearch.disabled = true;
       searchStatus.style.display = 'block';
