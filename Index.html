@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOTTER // Player Lock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b09;
+    --panel:#0e1512;
+    --panel-line:#1c2b24;
+    --phosphor:#4fe870;
+    --phosphor-dim:#245c3a;
+    --amber:#ffb020;
+    --red:#ff4545;
+    --steel:#7d938a;
+    --ink:#d9e2dc;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--ink);
+    font-family:'Rajdhani',sans-serif;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--phosphor-dim);}
+
+  .app{ display:flex; flex-direction:column; min-height:100vh; }
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px;
+    border-bottom:1px solid var(--panel-line);
+    background:linear-gradient(180deg, #0c110e, #080b09);
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand h1{
+    font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:2px;
+    font-size:20px; margin:0; color:var(--phosphor);
+    text-shadow:0 0 12px rgba(79,232,112,0.35);
+  }
+  .brand span{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel); }
+  .status-pill{
+    font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;
+    padding:5px 10px; border:1px solid var(--panel-line); border-radius:2px;
+    color:var(--steel); text-transform:uppercase;
+  }
+  .status-pill.live{ color:var(--phosphor); border-color:var(--phosphor-dim); }
+
+  main{ flex:1; display:flex; flex-direction:column; }
+
+  .stage-wrap{
+    position:relative; width:100%; max-width:980px; margin:0 auto;
+    background:#000;
+    border-bottom:1px solid var(--panel-line);
+  }
+  .stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; }
+  video, canvas{ position:absolute; top:0; left:0; width:100%; height:100%; }
+  video{ object-fit:cover; }
+  canvas{ pointer-events:none; }
+  #clickLayer{ position:absolute; inset:0; pointer-events:auto; cursor:crosshair; }
+
+  .placeholder{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; color:var(--steel); font-family:'Share Tech Mono',monospace;
+    font-size:12px; letter-spacing:1px; text-align:center; padding:20px;
+  }
+  .placeholder b{ color:var(--phosphor); font-family:'Orbitron',sans-serif; letter-spacing:2px; font-size:13px;}
+
+  .telemetry{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    border-bottom:1px solid var(--panel-line);
+    max-width:980px; margin:0 auto; width:100%;
+  }
+  .telemetry .cell{
+    padding:10px 14px; border-right:1px solid var(--panel-line);
+  }
+  .telemetry .cell:last-child{ border-right:none; }
+  .telemetry .label{
+    font-size:10px; letter-spacing:1.5px; color:var(--steel); text-transform:uppercase;
+  }
+  .telemetry .value{
+    font-family:'Share Tech Mono',monospace; font-size:16px; margin-top:2px;
+    color:var(--ink);
+  }
+  .telemetry .value.on{ color:var(--phosphor); }
+  .telemetry .value.warn{ color:var(--amber); }
+  .telemetry .value.off{ color:var(--red); }
+
+  .controls{
+    max-width:980px; margin:0 auto; width:100%;
+    padding:14px 16px 28px; display:flex; flex-direction:column; gap:12px;
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  button, .file-btn{
+    font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.5px;
+    font-size:14px; text-transform:uppercase;
+    padding:11px 16px; border-radius:2px; cursor:pointer;
+    background:var(--panel); color:var(--ink); border:1px solid var(--panel-line);
+    transition:border-color .15s, color .15s;
+    flex:1; min-width:140px; text-align:center;
+  }
+  button:hover, .file-btn:hover{ border-color:var(--phosphor-dim); color:var(--phosphor); }
+  button.primary{ border-color:var(--phosphor-dim); color:var(--phosphor); }
+  button.primary:hover{ background:rgba(79,232,112,0.08); }
+  button:disabled{ opacity:0.35; cursor:not-allowed; }
+  button.danger:hover{ border-color:#5c2323; color:var(--red); }
+  input[type=file]{ display:none; }
+
+  .hint{
+    font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel);
+    letter-spacing:0.5px; line-height:1.6; border-left:2px solid var(--panel-line); padding-left:10px;
+  }
+  .hint b{ color:var(--phosphor); }
+
+  footer{
+    max-width:980px; margin:0 auto; width:100%; padding:10px 16px 24px;
+    font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--steel); opacity:0.6;
+  }
+
+  @media (max-width:600px){
+    .telemetry{ grid-template-columns:repeat(3,1fr); }
+    .telemetry .cell{ padding:8px 8px; }
+    .telemetry .value{ font-size:13px; }
+    .brand h1{ font-size:16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>SPOTTER</h1>
+      <span>PLAYER LOCK &middot; v1.0</span>
+    </div>
+    <div class="status-pill" id="modelStatus">MODEL: LOADING</div>
+  </header>
+
+  <main>
+    <div class="stage-wrap">
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div id="clickLayer"></div>
+        <div class="placeholder" id="placeholder">
+          <b>NO SIGNAL</b>
+          <div>Start the camera or load footage below.<br>Detected players will outline in steel grey — tap one to lock.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="telemetry">
+      <div class="cell">
+        <div class="label">Lock Status</div>
+        <div class="value off" id="tLock">NO TARGET</div>
+      </div>
+      <div class="cell">
+        <div class="label">Grid Position</div>
+        <div class="value" id="tGrid">—</div>
+      </div>
+      <div class="cell">
+        <div class="label">Confidence</div>
+        <div class="value" id="tConf">—</div>
+      </div>
+    </div>
+    <div class="telemetry" style="border-top:1px solid var(--panel-line);">
+      <div class="cell" style="grid-column:1/3;">
+        <div class="label">Lock Duration</div>
+        <div class="value" id="tDuration">—</div>
+      </div>
+      <div class="cell">
+        <div class="label">Trail</div>
+        <div class="value" id="tTrail">OFF</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="row">
+        <button class="primary" id="btnCamera">Start Camera</button>
+        <label class="file-btn" for="fileInput">Load Footage</label>
+        <input type="file" id="fileInput" accept="video/*">
+      </div>
+      <div class="row">
+        <button id="btnFacing">Switch Camera</button>
+        <button class="danger" id="btnReset" disabled>Release Lock</button>
+      </div>
+      <div class="row">
+        <button id="btnTrail">Trail: Off</button>
+        <button id="btnSnapshot">Snapshot</button>
+      </div>
+      <div class="hint">
+        <b>HOW TO LOCK:</b> once players are outlined on screen, tap directly on your family member.
+        SPOTTER will track their position frame-to-frame using build + colour signature, and re-acquire
+        automatically (<span style="color:var(--amber)">REACQUIRING</span>) if they're briefly blocked.
+      </div>
+    </div>
+  </main>
+
+  <footer>All processing runs locally in this browser. Nothing is uploaded.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.17.0/tf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/coco-ssd/2.2.2/coco-ssd.min.js"></script>
+<script>
+(function(){
+  const video = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const ctx = overlay.getContext('2d');
+  const clickLayer = document.getElementById('clickLayer');
+  const placeholder = document.getElementById('placeholder');
+  const modelStatus = document.getElementById('modelStatus');
+  const btnCamera = document.getElementById('btnCamera');
+  const btnFacing = document.getElementById('btnFacing');
+  const btnReset = document.getElementById('btnReset');
+  const fileInput = document.getElementById('fileInput');
+  const tLock = document.getElementById('tLock');
+  const tGrid = document.getElementById('tGrid');
+  const tConf = document.getElementById('tConf');
+  const tDuration = document.getElementById('tDuration');
+  const tTrail = document.getElementById('tTrail');
+  const btnTrail = document.getElementById('btnTrail');
+  const btnSnapshot = document.getElementById('btnSnapshot');
+
+  const GRID_COLS = 8, GRID_ROWS = 5;
+  const COL_LABELS = 'ABCDEFGH';
+
+  let model = null;
+  let stream = null;
+  let facingMode = 'environment';
+  let running = false;
+  let target = null; // {box:[x,y,w,h], hist:Float32Array, lastSeen:frameCount, coast, conf, state}
+  let frameCount = 0;
+  let hiddenCanvas = document.createElement('canvas');
+  let hiddenCtx = hiddenCanvas.getContext('2d', {willReadFrequently:true});
+  let trailEnabled = false;
+  let trailPoints = []; // {x,y,age}
+  const TRAIL_MAX = 40;
+
+  btnTrail.addEventListener('click', ()=>{
+    trailEnabled = !trailEnabled;
+    btnTrail.textContent = 'Trail: ' + (trailEnabled ? 'On' : 'Off');
+    tTrail.textContent = trailEnabled ? 'ON' : 'OFF';
+    tTrail.className = 'value ' + (trailEnabled ? 'on' : '');
+    if(!trailEnabled) trailPoints = [];
+  });
+
+  btnSnapshot.addEventListener('click', ()=>{
+    const out = document.createElement('canvas');
+    out.width = overlay.width; out.height = overlay.height;
+    const octx = out.getContext('2d');
+    // draw current video frame scaled/cropped same as overlay (object-fit:cover)
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(vw > 0){
+      const scale = Math.max(out.width/vw, out.height/vh);
+      const rw = vw*scale, rh = vh*scale;
+      const ox = (out.width-rw)/2, oy = (out.height-rh)/2;
+      octx.drawImage(video, ox, oy, rw, rh);
+    }
+    octx.drawImage(overlay, 0, 0);
+    const link = document.createElement('a');
+    link.download = 'spotter-snapshot-' + Date.now() + '.png';
+    link.href = out.toDataURL('image/png');
+    link.click();
+  });
+
+  cocoSsd.load({base:'lite_mobilenet_v2'}).then(m=>{
+    model = m;
+    modelStatus.textContent = 'MODEL: READY';
+    modelStatus.classList.add('live');
+  }).catch(()=>{
+    modelStatus.textContent = 'MODEL: FAILED';
+  });
+
+  async function startCamera(){
+    stopAll();
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode}, audio:false});
+      video.srcObject = stream;
+      await video.play();
+      placeholder.style.display = 'none';
+      running = true;
+      loop();
+    }catch(e){
+      alert('Could not access camera: ' + e.message);
+    }
+  }
+
+  fileInput.addEventListener('change', ()=>{
+    const file = fileInput.files[0];
+    if(!file) return;
+    stopAll();
+    video.srcObject = null;
+    video.src = URL.createObjectURL(file);
+    video.loop = true;
+    video.play();
+    placeholder.style.display = 'none';
+    running = true;
+    loop();
+  });
+
+  function stopAll(){
+    running = false;
+    target = null;
+    updateLockUI();
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  }
+
+  btnCamera.addEventListener('click', startCamera);
+  btnFacing.addEventListener('click', ()=>{
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    if(stream) startCamera();
+  });
+  btnReset.addEventListener('click', ()=>{
+    target = null;
+    trailPoints = [];
+    btnReset.disabled = true;
+    updateLockUI();
+  });
+
+  function syncCanvasSize(){
+    const rect = video.getBoundingClientRect();
+    overlay.width = rect.width; overlay.height = rect.height;
+  }
+  window.addEventListener('resize', syncCanvasSize);
+  video.addEventListener('loadedmetadata', syncCanvasSize);
+
+  let lastDetections = [];
+
+  async function loop(){
+    if(!running) return;
+    syncCanvasSize();
+
+    if(model && video.readyState >= 2 && video.videoWidth > 0){
+      try{
+        const preds = await model.detect(video, 20);
+        lastDetections = preds.filter(p=>p.class === 'person' && p.score > 0.35);
+      }catch(e){ /* skip frame on error */ }
+      frameCount++;
+      if(target) trackTarget();
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function toDisplayBox(box){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const dw = overlay.width, dh = overlay.height;
+    const scale = Math.max(dw/vw, dh/vh);
+    const rw = vw*scale, rh = vh*scale;
+    const ox = (dw-rw)/2, oy = (dh-rh)/2;
+    return [ box[0]*scale+ox, box[1]*scale+oy, box[2]*scale, box[3]*scale ];
+  }
+
+  function iou(a,b){
+    const [ax,ay,aw,ah]=a, [bx,by,bw,bh]=b;
+    const x1=Math.max(ax,bx), y1=Math.max(ay,by);
+    const x2=Math.min(ax+aw,bx+bw), y2=Math.min(ay+ah,by+bh);
+    const iw=Math.max(0,x2-x1), ih=Math.max(0,y2-y1);
+    const inter = iw*ih;
+    const union = aw*ah + bw*bh - inter;
+    return union<=0 ? 0 : inter/union;
+  }
+
+  function colorHist(box){
+    const [x,y,w,h] = box.map(v=>Math.max(0,Math.round(v)));
+    if(w<4||h<4) return null;
+    hiddenCanvas.width = 16; hiddenCanvas.height = 16;
+    try{
+      hiddenCtx.drawImage(video, x, y, Math.max(1,w), Math.max(1,h), 0,0,16,16);
+      const data = hiddenCtx.getImageData(0,0,16,16).data;
+      const bins = new Float32Array(8*8*8);
+      for(let i=0;i<data.length;i+=4){
+        const r=data[i]>>5, g=data[i+1]>>5, b=data[i+2]>>5;
+        bins[r*64+g*8+b]++;
+      }
+      let sum=0; for(let i=0;i<bins.length;i++) sum+=bins[i];
+      if(sum>0) for(let i=0;i<bins.length;i++) bins[i]/=sum;
+      return bins;
+    }catch(e){ return null; }
+  }
+
+  function histSimilarity(a,b){
+    if(!a||!b) return 0;
+    let s=0;
+    for(let i=0;i<a.length;i++) s += Math.sqrt(a[i]*b[i]);
+    return s;
+  }
+
+  function trackTarget(){
+    if(!target) return;
+    let best=null, bestScore=-1;
+    for(const d of lastDetections){
+      const iouScore = iou(target.box, d.bbox);
+      const hist = colorHist(d.bbox);
+      const histScore = histSimilarity(target.hist, hist);
+      const score = iouScore*0.55 + histScore*0.45;
+      if(score > bestScore){ bestScore = score; best = {det:d, hist}; }
+    }
+
+    const MATCH_THRESHOLD = 0.28;
+    if(best && bestScore > MATCH_THRESHOLD){
+      target.box = best.det.bbox;
+      target.hist = target.hist ? blendHist(target.hist, best.hist) : best.hist;
+      target.lastSeen = frameCount;
+      target.coast = 0;
+      target.conf = best.det.score;
+      target.state = 'LOCKED';
+    } else {
+      target.coast++;
+      target.state = target.coast > 45 ? 'LOST' : 'REACQUIRING';
+      if(target.coast > 150){
+        target = null;
+        btnReset.disabled = true;
+      }
+    }
+    updateLockUI();
+  }
+
+  function blendHist(oldH, newH){
+    if(!newH) return oldH;
+    const out = new Float32Array(oldH.length);
+    for(let i=0;i<oldH.length;i++) out[i] = oldH[i]*0.7 + newH[i]*0.3;
+    return out;
+  }
+
+  clickLayer.addEventListener('click', (e)=>{
+    if(!lastDetections.length) return;
+    const rect = clickLayer.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    let picked = null;
+    for(const d of lastDetections){
+      const db = toDisplayBox(d.bbox);
+      if(cx>=db[0] && cx<=db[0]+db[2] && cy>=db[1] && cy<=db[1]+db[3]){
+        picked = d; break;
+      }
+    }
+    if(picked){
+      const hist = colorHist(picked.bbox);
+      target = { box:picked.bbox, hist, lastSeen:frameCount, coast:0, conf:picked.score, state:'LOCKED', lockedAt: performance.now() };
+      trailPoints = [];
+      btnReset.disabled = false;
+      updateLockUI();
+    }
+  });
+
+  function draw(){
+    ctx.clearRect(0,0,overlay.width, overlay.height);
+    drawGrid();
+
+    for(const d of lastDetections){
+      if(target && d.bbox === target.box) continue;
+      const db = toDisplayBox(d.bbox);
+      ctx.strokeStyle = 'rgba(125,147,138,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(db[0], db[1], db[2], db[3]);
+    }
+
+    if(target){
+      const db = toDisplayBox(target.box);
+      if(trailEnabled && target.state === 'LOCKED'){
+        trailPoints.push({x: db[0]+db[2]/2, y: db[1]+db[3]});
+        if(trailPoints.length > TRAIL_MAX) trailPoints.shift();
+      }
+      if(trailEnabled) drawTrail();
+      const color = target.state === 'LOCKED' ? '#4fe870' : (target.state === 'REACQUIRING' ? '#ffb020' : '#ff4545');
+      drawLockBox(db, color, target.state);
+    }
+  }
+
+  function drawTrail(){
+    for(let i=0;i<trailPoints.length;i++){
+      const p = trailPoints[i];
+      const t = i/trailPoints.length;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2+t*2, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(79,232,112,' + (0.08 + t*0.4) + ')';
+      ctx.fill();
+    }
+    if(trailPoints.length > 1){
+      ctx.beginPath();
+      ctx.moveTo(trailPoints[0].x, trailPoints[0].y);
+      for(const p of trailPoints) ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = 'rgba(79,232,112,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  function drawGrid(){
+    const w = overlay.width, h = overlay.height;
+    ctx.strokeStyle = 'rgba(79,232,112,0.12)';
+    ctx.lineWidth = 1;
+    ctx.font = "10px 'Share Tech Mono', monospace";
+    ctx.fillStyle = 'rgba(125,147,138,0.55)';
+    for(let c=1;c<GRID_COLS;c++){
+      const x = w*c/GRID_COLS;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+    }
+    for(let r=1;r<GRID_ROWS;r++){
+      const y = h*r/GRID_ROWS;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+    for(let c=0;c<GRID_COLS;c++){
+      ctx.fillText(COL_LABELS[c], w*c/GRID_COLS + 4, 12);
+    }
+  }
+
+  function gridRef(box){
+    const cx = box[0]+box[2]/2, cy = box[1]+box[3]/2;
+    const col = Math.min(GRID_COLS-1, Math.max(0, Math.floor(cx/overlay.width*GRID_COLS)));
+    const row = Math.min(GRID_ROWS-1, Math.max(0, Math.floor(cy/overlay.height*GRID_ROWS)));
+    return COL_LABELS[col] + (row+1);
+  }
+
+  function drawLockBox(db, color, state){
+    const [x,y,w,h] = db;
+    const bl = 14;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = state==='LOCKED' ? 8 : 4;
+
+    const corners = [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]];
+    corners.forEach(([cx,cy,sx,sy])=>{
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + bl*sy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx + bl*sx, cy);
+      ctx.stroke();
+    });
+
+    const midx = x+w/2, midy = y+h/2;
+    ctx.beginPath();
+    ctx.moveTo(midx-6, midy); ctx.lineTo(midx+6, midy);
+    ctx.moveTo(midx, midy-6); ctx.lineTo(midx, midy+6);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const label = state === 'LOCKED' ? gridRef(target.box) : state;
+    ctx.font = "700 11px 'Share Tech Mono', monospace";
+    const textW = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y-18, textW+12, 16);
+    ctx.fillStyle = '#080b09';
+    ctx.fillText(label, x+6, y-6);
+  }
+
+  function updateLockUI(){
+    if(!target){
+      tLock.textContent = 'NO TARGET'; tLock.className='value off';
+      tGrid.textContent = '—'; tConf.textContent = '—'; tDuration.textContent = '—';
+      return;
+    }
+    tLock.textContent = target.state;
+    tLock.className = 'value ' + (target.state==='LOCKED' ? 'on' : target.state==='REACQUIRING' ? 'warn' : 'off');
+    tGrid.textContent = gridRef(target.box);
+    tConf.textContent = target.conf ? Math.round(target.conf*100)+'%' : '—';
+    const secs = Math.floor((performance.now() - target.lockedAt)/1000);
+    const mm = String(Math.floor(secs/60)).padStart(2,'0');
+    const ss = String(secs%60).padStart(2,'0');
+    tDuration.textContent = mm+':'+ss;
+  }
+
+})();
+</script>
+</body>
+</html>
