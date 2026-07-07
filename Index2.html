@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>RECALL // Item Finder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
     --steel:#7d938a;
     --ink:#d9e2dc;
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
     margin:0; padding:0; height:100%;
     background:var(--bg); color:var(--ink);
@@ -32,26 +32,37 @@
     padding:14px 18px;
     border-bottom:1px solid var(--panel-line);
     background:linear-gradient(180deg, #0c110e, #080b09);
+    gap:10px;
   }
-  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand{ display:flex; align-items:baseline; gap:10px; min-width:0; }
   .brand h1{
     font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:2px;
     font-size:20px; margin:0; color:var(--phosphor);
     text-shadow:0 0 12px rgba(79,232,112,0.35);
   }
-  .brand span{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel); }
+  .brand span{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel); white-space:nowrap; }
   .status-pill{
     font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;
     padding:5px 10px; border:1px solid var(--panel-line); border-radius:2px;
-    color:var(--steel); text-transform:uppercase;
+    color:var(--steel); text-transform:uppercase; white-space:nowrap; flex-shrink:0;
   }
   .status-pill.live{ color:var(--phosphor); border-color:var(--phosphor-dim); }
+  .status-pill.fail{ color:var(--red); border-color:#5c2323; }
+
+  .banner{
+    display:none; padding:10px 16px; font-family:'Share Tech Mono',monospace; font-size:12px;
+    line-height:1.5; border-bottom:1px solid var(--panel-line); color:var(--amber);
+    background:rgba(255,176,32,0.08);
+  }
+  .banner.show{ display:block; }
+  .banner a{ color:var(--amber); }
 
   .tabs{ display:flex; max-width:980px; margin:0 auto; width:100%; border-bottom:1px solid var(--panel-line); }
   .tab{
     flex:1; text-align:center; padding:12px; cursor:pointer;
     font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1px; text-transform:uppercase;
     color:var(--steel); border-bottom:2px solid transparent; font-size:14px;
+    user-select:none;
   }
   .tab.active{ color:var(--phosphor); border-bottom-color:var(--phosphor); }
 
@@ -60,10 +71,13 @@
   .panel.active{ display:block; }
 
   .stage-wrap{ position:relative; width:100%; background:#000; border-bottom:1px solid var(--panel-line); }
-  .stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; }
+  .stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; touch-action:none; }
   video, canvas, img.frame{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
-  canvas{ pointer-events:none; }
-  [id^="drawLayer"]{ position:absolute; inset:0; pointer-events:auto; cursor:crosshair; touch-action:none; -webkit-user-select:none; user-select:none; }
+  canvas.overlay{ pointer-events:none; }
+  canvas.drawlayer{
+    position:absolute; inset:0; pointer-events:auto; cursor:crosshair;
+    touch-action:none; -webkit-user-select:none; user-select:none;
+  }
 
   .placeholder{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -82,6 +96,7 @@
     background:var(--panel); color:var(--ink); border:1px solid var(--panel-line);
     transition:border-color .15s, color .15s;
     flex:1; min-width:130px; text-align:center;
+    -webkit-user-select:none; user-select:none;
   }
   button:hover, .file-btn:hover{ border-color:var(--phosphor-dim); color:var(--phosphor); }
   button.primary{ border-color:var(--phosphor-dim); color:var(--phosphor); }
@@ -95,6 +110,12 @@
     letter-spacing:0.5px; line-height:1.6; border-left:2px solid var(--panel-line); padding-left:10px;
   }
   .hint b{ color:var(--phosphor); }
+  .hint.warn{ border-left-color:var(--amber); }
+  .hint.warn b{ color:var(--amber); }
+
+  .mode-toggle{ display:flex; gap:8px; }
+  .mode-toggle button{ flex:1; }
+  .mode-toggle button.on{ border-color:var(--phosphor); color:var(--phosphor); background:rgba(79,232,112,0.08); }
 
   /* library grid */
   .lib-grid{
@@ -111,6 +132,10 @@
     font-family:'Share Tech Mono',monospace; font-size:10px; padding:4px; color:var(--ink);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
+  .lib-item .tag{
+    position:absolute; top:2px; left:2px; background:rgba(8,11,9,0.8); color:var(--phosphor);
+    font-family:'Share Tech Mono',monospace; font-size:9px; padding:1px 4px; border-radius:2px;
+  }
   .lib-item .del{
     position:absolute; top:2px; right:2px; background:rgba(8,11,9,0.8); color:var(--red);
     border:none; font-size:12px; width:20px; height:20px; border-radius:2px; padding:0; min-width:0; flex:none;
@@ -122,6 +147,7 @@
   .result-row{
     display:flex; align-items:center; gap:10px; padding:8px 10px;
     border:1px solid var(--panel-line); border-radius:3px; background:var(--panel);
+    cursor:pointer;
   }
   .result-row.best{ border-color:var(--phosphor-dim); }
   .result-row .rank{
@@ -153,6 +179,13 @@
     max-width:980px; margin:0 auto; width:100%; padding:10px 16px 24px;
     font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--steel); opacity:0.6;
   }
+
+  .box-actions{
+    position:absolute; z-index:5; display:none; gap:6px;
+  }
+  .box-actions button{
+    flex:none; min-width:0; padding:6px 8px; font-size:11px;
+  }
 </style>
 </head>
 <body>
@@ -161,10 +194,17 @@
   <header class="top">
     <div class="brand">
       <h1>RECALL</h1>
-      <span>ITEM FINDER &middot; v1.0</span>
+      <span>ITEM FINDER &middot; v2.0</span>
     </div>
     <div class="status-pill" id="modelStatus">MODEL: LOADING</div>
   </header>
+
+  <div class="banner" id="insecureBanner">
+    <b>⚠ CAMERA BLOCKED:</b> this page is open as a local file, so your phone will never show a camera
+    permission prompt (browsers require a secure https:// connection for camera access). Upload/photo mode
+    still works fine below. To use the live camera, host this file (e.g. GitHub Pages) and open it via
+    https://.
+  </div>
 
   <div class="tabs">
     <div class="tab active" data-tab="save">Save Item</div>
@@ -180,8 +220,8 @@
         <div class="stage" id="stageSave">
           <video id="videoSave" playsinline muted></video>
           <img class="frame" id="imgSave" style="display:none;">
-          <canvas id="overlaySave"></canvas>
-          <div id="drawLayerSave"></div>
+          <canvas class="overlay" id="overlaySave"></canvas>
+          <canvas class="drawlayer" id="drawLayerSave"></canvas>
           <div class="placeholder" id="placeholderSave">
             <b>NO IMAGE</b>
             <div>Start the camera or load a photo, then drag a box around the item.</div>
@@ -195,12 +235,12 @@
         </div>
         <div class="row">
           <label class="file-btn" for="fileInputSave">Load Photo</label>
-          <input type="file" id="fileInputSave" accept="image/*,video/*">
+          <input type="file" id="fileInputSave" accept="image/*">
           <button class="danger" id="btnClearSave">Clear Box</button>
         </div>
-        <div class="hint">
-          <b>HOW:</b> drag a box directly around the item (earphones, keys, whatever). Works on any object —
-          no fixed category list. Then tap <b>Save Selection</b> to name and store it.
+        <div class="hint" id="saveHint">
+          <b>HOW:</b> touch and drag directly on the photo to draw a box around the item (earphones, keys,
+          whatever). Works on any object — no fixed category list. Then tap <b>Save Selection</b> to name and store it.
         </div>
         <div class="row">
           <button class="primary" id="btnSaveSelection" disabled>Save Selection</button>
@@ -225,7 +265,7 @@
         <div class="stage" id="stageFind">
           <video id="videoFind" playsinline muted></video>
           <img class="frame" id="imgFind" style="display:none;">
-          <canvas id="overlayFind"></canvas>
+          <canvas class="overlay" id="overlayFind"></canvas>
           <div class="placeholder" id="placeholderFind">
             <b>NO SCENE</b>
             <div>Load a photo of the area to search, then tap Search Scene.</div>
@@ -287,6 +327,14 @@
   let model = null;
   let items = [];
 
+  // ---------------- secure context check ----------------
+  // getUserMedia silently refuses to even prompt unless the page is served over
+  // https (or http://localhost). Opening the file directly (file://) or over
+  // plain http on a LAN IP means the phone will never show a permission dialog.
+  if(!window.isSecureContext){
+    document.getElementById('insecureBanner').classList.add('show');
+  }
+
   // ---------------- storage ----------------
   function loadItems(){
     try{
@@ -302,17 +350,46 @@
 
   // ---------------- model ----------------
   const modelStatus = document.getElementById('modelStatus');
-  if(typeof mobilenet === 'undefined' || typeof tf === 'undefined'){
-    modelStatus.textContent = 'MODEL: FAILED (CDN blocked)';
-  } else {
+  function setStatus(text, cls){
+    modelStatus.textContent = text;
+    modelStatus.classList.remove('live','fail');
+    if(cls) modelStatus.classList.add(cls);
+  }
+  setStatus('MODEL: LOADING', null);
+
+  // Give the CDN a time limit — on some mobile networks/browsers the script
+  // tags load but the library never initializes, and the pill was previously
+  // left blank/stuck forever with no explanation.
+  let modelSettled = false;
+  const MODEL_TIMEOUT_MS = 20000;
+  setTimeout(()=>{
+    if(!modelSettled){
+      modelSettled = true;
+      setStatus('MODEL: TIMED OUT — RETRY', 'fail');
+    }
+  }, MODEL_TIMEOUT_MS);
+
+  function initModel(){
+    if(typeof tf === 'undefined' || typeof mobilenet === 'undefined'){
+      modelSettled = true;
+      setStatus('MODEL: FAILED (CDN BLOCKED)', 'fail');
+      return;
+    }
     mobilenet.load({version:2, alpha:1.0}).then(m=>{
+      modelSettled = true;
       model = m;
-      modelStatus.textContent = 'MODEL: READY';
-      modelStatus.classList.add('live');
+      setStatus('MODEL: READY', 'live');
     }).catch(err=>{
-      modelStatus.textContent = 'MODEL: FAILED';
+      modelSettled = true;
+      setStatus('MODEL: FAILED', 'fail');
+      console.error('mobilenet load error', err);
     });
   }
+  // run after the current tick so the "typeof tf" check reflects whether the
+  // CDN scripts actually finished executing, not just that the tags exist
+  window.addEventListener('load', initModel);
+  // fallback in case 'load' already fired
+  if(document.readyState === 'complete') initModel();
 
   // ---------------- tabs ----------------
   const tabs = document.querySelectorAll('.tab');
@@ -324,6 +401,8 @@
       document.getElementById('panel-'+t.dataset.tab).classList.add('active');
       if(t.dataset.tab === 'library') renderLibrary();
       if(t.dataset.tab === 'find') renderFindLib();
+      // re-sync canvas sizes since hidden panels report 0-size rects
+      window.dispatchEvent(new Event('resize'));
     });
   });
 
@@ -362,7 +441,9 @@
     const crop = document.createElement('canvas');
     crop.width = 224; crop.height = 224;
     const cctx = crop.getContext('2d');
-    cctx.drawImage(sourceEl, box.x, box.y, box.w, box.h, 0, 0, 224, 224);
+    // guard against zero/negative sizes which throw on drawImage
+    const sw = Math.max(1, box.w), sh = Math.max(1, box.h);
+    cctx.drawImage(sourceEl, box.x, box.y, sw, sh, 0, 0, 224, 224);
     let embedding = null;
     if(model){
       const t = tf.tidy(()=>{
@@ -382,7 +463,152 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+
+  // Generic natural-size getter that works for both <video> and <img>,
+  // and never returns 0 (which was silently breaking box math before).
+  function naturalSize(el, isVideo){
+    if(isVideo) return { w: el.videoWidth || 0, h: el.videoHeight || 0 };
+    return { w: el.naturalWidth || 0, h: el.naturalHeight || 0 };
+  }
+
+  // =========================================================
+  // Reusable "stage" controller — handles camera / capture / upload /
+  // drawing a selection box, all pointer-event and sizing bugs fixed here.
+  // Used identically by the Save panel; the Find panel reuses the parts
+  // it needs (no drawing).
+  // =========================================================
+  function makeStage(opts){
+    const { video, img, overlay, drawLayer, placeholder, stageWrap } = opts;
+    const ctx = overlay.getContext('2d');
+    const dctx = drawLayer ? drawLayer.getContext('2d') : null;
+
+    let stream = null;
+    let sourceEl = null;
+    let sourceIsVideo = false;
+    let ready = false; // true once a usable frame/photo is displayed
+
+    // Canvas backing-store size must track the CSS/display size in *device
+    // pixels*, otherwise on high-DPI phones the drawn box lands in the wrong
+    // place relative to touches (a big source of "can't draw boxes").
+    function syncSize(){
+      const rect = stageWrap.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      [overlay, drawLayer].forEach(cv=>{
+        if(!cv) return;
+        cv.width = Math.round(rect.width * dpr);
+        cv.height = Math.round(rect.height * dpr);
+        cv.style.width = rect.width + 'px';
+        cv.style.height = rect.height + 'px';
+      });
+    }
+    window.addEventListener('resize', syncSize);
+    window.addEventListener('orientationchange', ()=>setTimeout(syncSize,150));
+
+    async function startCamera(){
+      if(!window.isSecureContext){
+        alert('Camera needs a secure (https) connection. This page is open as a local file, so the phone will never show a permission prompt. Host it (e.g. GitHub Pages) and open the https:// link, or use "Load Photo" instead.');
+        return;
+      }
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        alert('This browser does not support camera access. Try Chrome or Safari, or use "Load Photo" instead.');
+        return;
+      }
+      try{
+        if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video:{ facingMode:{ideal:'environment'} }, audio:false
+        });
+        video.srcObject = stream;
+        await video.play();
+        video.style.display='block'; img.style.display='none';
+        sourceEl = video; sourceIsVideo = true;
+        placeholder.style.display='none';
+        ready = false;
+        syncSize();
+        opts.onSourceChange && opts.onSourceChange();
+      }catch(e){
+        let msg = 'Camera error: ' + e.message;
+        if(e.name === 'NotAllowedError') msg = 'Camera permission was denied. Check your browser site settings and allow camera access for this page.';
+        if(e.name === 'NotFoundError') msg = 'No camera found on this device.';
+        if(e.name === 'NotReadableError') msg = 'Camera is already in use by another app.';
+        alert(msg);
+      }
+    }
+
+    function stopStream(){
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    }
+
+    function captureFrame(cb){
+      if(!video.videoWidth){ alert('Camera has no frame yet — wait a second and try again.'); return; }
+      const c = document.createElement('canvas');
+      c.width = video.videoWidth; c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video,0,0);
+      loadDataUrlIntoImg(c.toDataURL('image/jpeg',0.92), cb);
+    }
+
+    // Central image-loading path used by BOTH capture and file upload.
+    // The old bug: img.onload fired but the <img> was still display:none
+    // during layout, and syncSize() ran on the SAME frame the src was set,
+    // sometimes reading a stale 0×0 rect. We now: show the element, wait a
+    // rendered frame (requestAnimationFrame), THEN size the canvases.
+    function loadDataUrlIntoImg(src, cb){
+      stopStream();
+      img.onload = ()=>{
+        video.style.display='none';
+        img.style.display='block';
+        sourceEl = img; sourceIsVideo = false;
+        placeholder.style.display='none';
+        ready = true;
+        requestAnimationFrame(()=>{
+          syncSize();
+          clearOverlay();
+          cb && cb();
+          opts.onSourceChange && opts.onSourceChange();
+        });
+      };
+      img.onerror = ()=>{
+        alert('Could not load that image. Try a different photo (JPG/PNG/WebP).');
+      };
+      img.src = src;
+    }
+
+    function loadFile(file){
+      if(!file) return;
+      if(!file.type || !file.type.startsWith('image/')){
+        alert('Please choose an image file (JPG, PNG, WebP, etc).');
+        return;
+      }
+      // Use FileReader -> data URL instead of createObjectURL: some mobile
+      // browsers (notably in-app browsers / certain Android WebViews) throw
+      // or fail silently on blob: URLs assigned to <img src>, which was the
+      // "bug when uploading images" — data URLs work everywhere.
+      const reader = new FileReader();
+      reader.onload = ()=> loadDataUrlIntoImg(reader.result);
+      reader.onerror = ()=> alert('Could not read that file.');
+      reader.readAsDataURL(file);
+    }
+
+    function clearOverlay(){
+      ctx.clearRect(0,0,overlay.width,overlay.height);
+      if(dctx) dctx.clearRect(0,0,drawLayer.width,drawLayer.height);
+    }
+
+    return {
+      startCamera, captureFrame, loadFile, clearOverlay, syncSize,
+      get sourceEl(){ return sourceEl; },
+      get sourceIsVideo(){ return sourceIsVideo; },
+      get ready(){ return ready; },
+      set ready(v){ ready = v; },
+      get ctx(){ return ctx; },
+      get dctx(){ return dctx; },
+      stopStream
+    };
   }
 
   // =========================================================
@@ -392,124 +618,99 @@
     const video = document.getElementById('videoSave');
     const img = document.getElementById('imgSave');
     const overlay = document.getElementById('overlaySave');
-    const ctx = overlay.getContext('2d');
     const drawLayer = document.getElementById('drawLayerSave');
     const placeholder = document.getElementById('placeholderSave');
+    const stageWrap = document.getElementById('stageSave');
     const btnCamera = document.getElementById('btnCameraSave');
     const btnCapture = document.getElementById('btnCaptureSave');
     const btnClear = document.getElementById('btnClearSave');
     const btnSaveSel = document.getElementById('btnSaveSelection');
     const fileInput = document.getElementById('fileInputSave');
 
-    let stream = null;
-    let sourceEl = null; // the active visual element (video or img) currently displayed
-    let sourceIsVideo = false;
-    let box = null; // display coords {x,y,w,h}
-    let drawing = false, startX=0, startY=0;
+    const dctx = drawLayer.getContext('2d');
+    let box = null; // in DEVICE-PIXEL canvas coords (matches drawLayer.width/height)
+    let drawing = false, startX=0, startY=0, activePointerId=null;
 
-    function syncSize(){
-      const rect = (sourceIsVideo ? video : img).getBoundingClientRect();
-      overlay.width = rect.width; overlay.height = rect.height;
-    }
-    window.addEventListener('resize', syncSize);
+    const stage = makeStage({
+      video, img, overlay, drawLayer, placeholder, stageWrap,
+      onSourceChange(){ btnCapture.disabled = false; }
+    });
 
-    async function startCamera(){
-      try{
-        if(stream){ stream.getTracks().forEach(t=>t.stop()); }
-        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
-        video.srcObject = stream;
-        await video.play();
-        video.style.display='block'; img.style.display='none';
-        sourceEl = video; sourceIsVideo = true;
-        placeholder.style.display='none';
-        btnCapture.disabled = false;
-        syncSize();
-      }catch(e){ alert('Camera error: '+e.message); }
-    }
-    btnCamera.addEventListener('click', startCamera);
-
+    btnCamera.addEventListener('click', stage.startCamera);
     btnCapture.addEventListener('click', ()=>{
-      const c = document.createElement('canvas');
-      c.width = video.videoWidth; c.height = video.videoHeight;
-      c.getContext('2d').drawImage(video,0,0);
-      img.onload = ()=>{
-        video.style.display='none'; img.style.display='block';
-        sourceEl = img; sourceIsVideo = false;
-        if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-        placeholder.style.display='none';
-        syncSize();
-      };
-      img.src = c.toDataURL('image/jpeg',0.9);
+      stage.captureFrame(()=>{ box=null; btnSaveSel.disabled=true; });
     });
-
     fileInput.addEventListener('change', ()=>{
-      const file = fileInput.files[0];
-      if(!file) return;
-      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-      if(file.type.startsWith('video/')){
-        video.src = URL.createObjectURL(file);
-        video.style.display='block'; img.style.display='none';
-        sourceEl = video; sourceIsVideo = true;
-        video.play();
-        btnCapture.disabled = false;
-        placeholder.style.display='none';
-        video.onloadedmetadata = syncSize;
-      } else {
-        img.onload = ()=>{
-          video.style.display='none'; img.style.display='block';
-          sourceEl = img; sourceIsVideo = false;
-          placeholder.style.display='none';
-          syncSize();
-        };
-        img.src = URL.createObjectURL(file);
-      }
+      stage.loadFile(fileInput.files[0]);
+      box = null; btnSaveSel.disabled = true;
+      fileInput.value = ''; // allow re-selecting the same file later
     });
 
+    // Convert a client (viewport) coordinate to drawLayer device-pixel coords.
     function getPos(e){
       const rect = drawLayer.getBoundingClientRect();
-      const t = e.touches ? e.touches[0] : e;
-      return { x: t.clientX-rect.left, y: t.clientY-rect.top };
+      const dpr = window.devicePixelRatio || 1;
+      const cx = (e.clientX - rect.left) * dpr;
+      const cy = (e.clientY - rect.top) * dpr;
+      return { x: cx, y: cy };
     }
+
+    function drawBox(){
+      dctx.clearRect(0,0,drawLayer.width, drawLayer.height);
+      if(!box) return;
+      dctx.strokeStyle = '#4fe870';
+      dctx.lineWidth = 3 * (window.devicePixelRatio || 1);
+      dctx.shadowColor = '#4fe870'; dctx.shadowBlur = 8;
+      dctx.strokeRect(box.x, box.y, box.w, box.h);
+      dctx.shadowBlur = 0;
+    }
+
+    // Pointer Events (not touch/mouse separately) with pointer capture —
+    // this is the actual fix for "can't draw boxes on mobile": without
+    // setPointerCapture, a fast finger drag can move outside the exact
+    // element bounds mid-gesture and the browser stops sending move events
+    // to it, silently killing the drag.
     drawLayer.addEventListener('pointerdown', (e)=>{
-      if(!sourceEl) return;
+      if(!stage.sourceEl) return;
       e.preventDefault();
+      drawLayer.setPointerCapture(e.pointerId);
+      activePointerId = e.pointerId;
       drawing = true;
       const p = getPos(e);
       startX = p.x; startY = p.y;
       box = {x:startX, y:startY, w:0, h:0};
-    });
+      drawBox();
+    }, {passive:false});
+
     drawLayer.addEventListener('pointermove', (e)=>{
-      if(!drawing) return;
+      if(!drawing || e.pointerId !== activePointerId) return;
       e.preventDefault();
       const p = getPos(e);
       box = { x: Math.min(startX,p.x), y: Math.min(startY,p.y), w: Math.abs(p.x-startX), h: Math.abs(p.y-startY) };
       drawBox();
-    });
-    window.addEventListener('pointerup', ()=>{
+    }, {passive:false});
+
+    function endDraw(e){
       if(!drawing) return;
+      if(e && e.pointerId !== activePointerId) return;
       drawing = false;
-      if(box && box.w > 12 && box.h > 12){
+      activePointerId = null;
+      const dpr = window.devicePixelRatio || 1;
+      const minPx = 16 * dpr;
+      if(box && box.w > minPx && box.h > minPx){
         btnSaveSel.disabled = false;
       } else {
         box = null;
         btnSaveSel.disabled = true;
       }
       drawBox();
-    });
+    }
+    drawLayer.addEventListener('pointerup', endDraw);
+    drawLayer.addEventListener('pointercancel', endDraw);
 
     btnClear.addEventListener('click', ()=>{
       box = null; btnSaveSel.disabled = true; drawBox();
     });
-
-    function drawBox(){
-      ctx.clearRect(0,0,overlay.width, overlay.height);
-      if(!box) return;
-      ctx.strokeStyle = '#4fe870';
-      ctx.lineWidth = 2;
-      ctx.shadowColor = '#4fe870'; ctx.shadowBlur = 6;
-      ctx.strokeRect(box.x, box.y, box.w, box.h);
-      ctx.shadowBlur = 0;
-    }
 
     // modal
     const modal = document.getElementById('nameModal');
@@ -517,7 +718,7 @@
     document.getElementById('btnNameCancel').addEventListener('click', ()=> modal.classList.remove('show'));
 
     btnSaveSel.addEventListener('click', ()=>{
-      if(!box || !sourceEl) return;
+      if(!box || !stage.sourceEl) return;
       nameInput.value = '';
       modal.classList.add('show');
       setTimeout(()=>nameInput.focus(), 50);
@@ -526,12 +727,16 @@
     document.getElementById('btnNameSave').addEventListener('click', async ()=>{
       const name = nameInput.value.trim() || 'Unnamed item';
       modal.classList.remove('show');
-      // map display box -> natural pixel coords (object-fit:cover)
-      const natW = sourceIsVideo ? video.videoWidth : img.naturalWidth;
-      const natH = sourceIsVideo ? video.videoHeight : img.naturalHeight;
+      const sourceEl = stage.sourceEl, sourceIsVideo = stage.sourceIsVideo;
+      const nat = naturalSize(sourceEl, sourceIsVideo);
       const dispW = overlay.width, dispH = overlay.height;
-      const scale = Math.max(dispW/natW, dispH/natH);
-      const rw = natW*scale, rh = natH*scale;
+      if(!nat.w || !nat.h || !dispW || !dispH){
+        alert('Could not read the image size — please try drawing the box again.');
+        return;
+      }
+      // map display box (device px, object-fit:cover) -> natural pixel coords
+      const scale = Math.max(dispW/nat.w, dispH/nat.h);
+      const rw = nat.w*scale, rh = nat.h*scale;
       const ox = (dispW-rw)/2, oy = (dispH-rh)/2;
       const nb = {
         x: Math.max(0,(box.x-ox)/scale),
@@ -544,6 +749,7 @@
       items.push(entry);
       saveItems();
       box = null; btnSaveSel.disabled = true; drawBox();
+      renderLibrary(); renderFindLib();
       alert('Saved "'+name+'" to your library.');
     });
   })();
@@ -598,6 +804,7 @@
       }catch(err){ alert('Invalid file: '+err.message); }
     };
     reader.readAsText(file);
+    e.target.value = '';
   });
 
   // =========================================================
@@ -619,7 +826,7 @@
       el.addEventListener('click', ()=>{
         selectedItem = it;
         renderFindLib();
-        updateSearchEnabled();
+        window.updateSearchEnabled && window.updateSearchEnabled();
       });
       grid.appendChild(el);
     });
@@ -634,91 +841,49 @@
         const it = Array.isArray(data) ? data[0] : data;
         if(!it.id) it.id = 'item_'+Date.now();
         selectedItem = it;
-        updateSearchEnabled();
+        window.updateSearchEnabled && window.updateSearchEnabled();
+        renderFindLib();
         alert('Loaded signature: '+it.name);
       }catch(err){ alert('Invalid file: '+err.message); }
     };
     reader.readAsText(file);
+    e.target.value = '';
   });
 
   (function(){
     const video = document.getElementById('videoFind');
     const img = document.getElementById('imgFind');
     const overlay = document.getElementById('overlayFind');
-    const ctx = overlay.getContext('2d');
     const placeholder = document.getElementById('placeholderFind');
+    const stageWrap = document.getElementById('stageFind');
     const btnCamera = document.getElementById('btnCameraFind');
     const btnCapture = document.getElementById('btnCaptureFind');
     const fileInput = document.getElementById('fileInputFind');
     const btnSearch = document.getElementById('btnSearch');
     const searchStatus = document.getElementById('searchStatus');
     const resultsEl = document.getElementById('results');
+    const ctx = overlay.getContext('2d');
 
-    let stream = null;
-    let sourceEl = null;
-    let sourceIsVideo = false;
-    let sceneReady = false;
-
-    window.updateSearchEnabled = function(){
-      btnSearch.disabled = !(sceneReady && selectedItem);
-    };
-
-    function syncSize(){
-      const rect = (sourceIsVideo ? video : img).getBoundingClientRect();
-      overlay.width = rect.width; overlay.height = rect.height;
-    }
-    window.addEventListener('resize', syncSize);
-
-    async function startCamera(){
-      try{
-        if(stream){ stream.getTracks().forEach(t=>t.stop()); }
-        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
-        video.srcObject = stream;
-        await video.play();
-        video.style.display='block'; img.style.display='none';
-        sourceEl = video; sourceIsVideo = true;
-        placeholder.style.display='none';
+    const stage = makeStage({
+      video, img, overlay, drawLayer:null, placeholder, stageWrap,
+      onSourceChange(){
         btnCapture.disabled = false;
-        sceneReady = false;
-        updateSearchEnabled();
-        syncSize();
-      }catch(e){ alert('Camera error: '+e.message); }
-    }
-    btnCamera.addEventListener('click', startCamera);
-
-    btnCapture.addEventListener('click', ()=>{
-      const c = document.createElement('canvas');
-      c.width = video.videoWidth; c.height = video.videoHeight;
-      c.getContext('2d').drawImage(video,0,0);
-      img.onload = ()=>{
-        video.style.display='none'; img.style.display='block';
-        sourceEl = img; sourceIsVideo = false;
-        if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-        sceneReady = true;
-        updateSearchEnabled();
-        placeholder.style.display='none';
-        syncSize();
-        ctx.clearRect(0,0,overlay.width,overlay.height);
         resultsEl.innerHTML = '';
-      };
-      img.src = c.toDataURL('image/jpeg',0.9);
+        window.updateSearchEnabled && window.updateSearchEnabled();
+      }
     });
 
+    window.updateSearchEnabled = function(){
+      btnSearch.disabled = !(stage.ready && selectedItem && model);
+    };
+
+    btnCamera.addEventListener('click', stage.startCamera);
+    btnCapture.addEventListener('click', ()=>{
+      stage.captureFrame(()=>{ stage.ready = true; window.updateSearchEnabled(); });
+    });
     fileInput.addEventListener('change', ()=>{
-      const file = fileInput.files[0];
-      if(!file) return;
-      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-      img.onload = ()=>{
-        video.style.display='none'; img.style.display='block';
-        sourceEl = img; sourceIsVideo = false;
-        placeholder.style.display='none';
-        sceneReady = true;
-        updateSearchEnabled();
-        syncSize();
-        ctx.clearRect(0,0,overlay.width,overlay.height);
-        resultsEl.innerHTML = '';
-      };
-      img.src = URL.createObjectURL(file);
+      stage.loadFile(fileInput.files[0]);
+      fileInput.value = '';
     });
 
     // generate candidate windows (multi-scale sliding windows) in natural pixel coords
@@ -727,7 +892,7 @@
       const scales = [0.28, 0.45, 0.65];
       scales.forEach(scale=>{
         const bw = natW*scale, bh = natH*scale;
-        const stepX = bw*0.6, stepY = bh*0.6;
+        const stepX = bw*0.55, stepY = bh*0.55;
         for(let y=0; y+bh<=natH+1; y+=stepY){
           for(let x=0; x+bw<=natW+1; x+=stepX){
             boxes.push({x:Math.round(x), y:Math.round(y), w:Math.round(bw), h:Math.round(bh)});
@@ -754,49 +919,70 @@
       return { x: box.x*scale+ox, y: box.y*scale+oy, w: box.w*scale, h: box.h*scale };
     }
 
+    let lastKept = [];
+
     btnSearch.addEventListener('click', async ()=>{
-      if(!selectedItem || !sourceEl) return;
+      if(!selectedItem || !stage.sourceEl){
+        alert('Pick a saved item and load a scene photo first.');
+        return;
+      }
+      if(!model){
+        alert('The recognition model has not finished loading yet (check the status pill top-right). Wait a moment and try again.');
+        return;
+      }
       btnSearch.disabled = true;
       searchStatus.style.display = 'block';
       searchStatus.textContent = 'SCANNING SCENE...';
       resultsEl.innerHTML = '';
       ctx.clearRect(0,0,overlay.width,overlay.height);
 
-      const natW = sourceIsVideo ? video.videoWidth : img.naturalWidth;
-      const natH = sourceIsVideo ? video.videoHeight : img.naturalHeight;
-      const candidates = generateCandidates(natW, natH);
+      const sourceEl = stage.sourceEl, sourceIsVideo = stage.sourceIsVideo;
+      const nat = naturalSize(sourceEl, sourceIsVideo);
+      if(!nat.w || !nat.h){
+        searchStatus.textContent = 'ERROR: could not read scene image size.';
+        btnSearch.disabled = false;
+        return;
+      }
+      const candidates = generateCandidates(nat.w, nat.h);
 
       const scored = [];
       for(let i=0;i<candidates.length;i++){
         const box = candidates[i];
         searchStatus.textContent = 'SCANNING SCENE... ' + (i+1) + '/' + candidates.length;
-        const {embedding, hist} = await embedCrop(sourceEl, box);
-        let score = 0;
-        if(embedding && selectedItem.embedding){
-          score += cosineSim(embedding, selectedItem.embedding) * 0.75;
-        }
-        if(hist && selectedItem.hist){
-          score += histSim(hist, selectedItem.hist) * 0.25;
-        }
-        scored.push({box, score});
-        // yield to UI occasionally
+        try{
+          const {embedding, hist} = await embedCrop(sourceEl, box);
+          let score = 0;
+          if(embedding && selectedItem.embedding){
+            score += cosineSim(embedding, selectedItem.embedding) * 0.75;
+          }
+          if(hist && selectedItem.hist){
+            score += histSim(hist, selectedItem.hist) * 0.25;
+          }
+          scored.push({box, score});
+        }catch(err){ /* skip a bad crop rather than aborting the whole scan */ }
         if(i % 6 === 0) await new Promise(r=>setTimeout(r,0));
       }
 
       scored.sort((a,b)=>b.score-a.score);
-      // non-max suppression, keep top distinct matches
       const kept = [];
       for(const s of scored){
-        if(kept.length >= 3) break;
+        if(kept.length >= 4) break;
         if(kept.some(k=>iou(k.box, s.box) > 0.3)) continue;
         kept.push(s);
       }
+      lastKept = kept;
 
-      searchStatus.textContent = kept.length ? 'DONE — ' + kept.length + ' candidate area(s) found' : 'NO CANDIDATES FOUND';
+      const CONFIDENT = 0.55;
+      if(!kept.length){
+        searchStatus.textContent = 'NO CANDIDATES FOUND — try a clearer / closer photo of the scene.';
+      } else if(kept[0].score < CONFIDENT){
+        searchStatus.textContent = 'LOW CONFIDENCE — best guess shown, but it may not be the item. Try a different angle or lighting.';
+      } else {
+        searchStatus.textContent = 'DONE — ' + kept.length + ' candidate area(s) found';
+      }
 
-      // draw
       kept.forEach((k,idx)=>{
-        const db = toDisplayBox(k.box, natW, natH);
+        const db = toDisplayBox(k.box, nat.w, nat.h);
         const color = idx===0 ? '#4fe870' : '#ffb020';
         drawResultBox(db, color, idx===0 ? 'MATCH' : ('#'+(idx+1)));
       });
@@ -812,6 +998,15 @@
             <div class="score">${idx===0 ? 'Best match' : 'Candidate'} &middot; ${pct}%</div>
             <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
           </div>`;
+        row.addEventListener('click', ()=>{
+          // re-draw with this candidate highlighted as the primary box
+          ctx.clearRect(0,0,overlay.width,overlay.height);
+          kept.forEach((k2,i2)=>{
+            const db = toDisplayBox(k2.box, nat.w, nat.h);
+            const color = i2===idx ? '#4fe870' : '#ffb020';
+            drawResultBox(db, color, i2===idx ? 'MATCH' : ('#'+(i2+1)));
+          });
+        });
         resultsEl.appendChild(row);
       });
 
@@ -820,8 +1015,9 @@
 
     function drawResultBox(db, color, label){
       const {x,y,w,h} = db;
-      const bl = 14;
-      ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+      const dpr = window.devicePixelRatio || 1;
+      const bl = 14 * dpr;
+      ctx.strokeStyle = color; ctx.lineWidth = 2.5 * dpr;
       ctx.shadowColor = color; ctx.shadowBlur = 6;
       const corners = [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]];
       corners.forEach(([cx,cy,sx,sy])=>{
@@ -830,12 +1026,12 @@
         ctx.stroke();
       });
       ctx.shadowBlur = 0;
-      ctx.font = "700 11px 'Share Tech Mono', monospace";
+      ctx.font = (700*1) + ' ' + (11*dpr) + "px 'Share Tech Mono', monospace";
       const tw = ctx.measureText(label).width;
       ctx.fillStyle = color;
-      ctx.fillRect(x, y-18, tw+12, 16);
+      ctx.fillRect(x, y-18*dpr, tw+12, 16*dpr);
       ctx.fillStyle = '#080b09';
-      ctx.fillText(label, x+6, y-6);
+      ctx.fillText(label, x+6, y-6*dpr);
     }
   })();
 
