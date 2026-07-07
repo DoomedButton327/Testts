@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RECALL // Item Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b09;
+    --panel:#0e1512;
+    --panel-line:#1c2b24;
+    --phosphor:#4fe870;
+    --phosphor-dim:#245c3a;
+    --amber:#ffb020;
+    --red:#ff4545;
+    --steel:#7d938a;
+    --ink:#d9e2dc;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--ink);
+    font-family:'Rajdhani',sans-serif;
+    overflow-x:hidden;
+  }
+  .app{ display:flex; flex-direction:column; min-height:100vh; }
+
+  header.top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px;
+    border-bottom:1px solid var(--panel-line);
+    background:linear-gradient(180deg, #0c110e, #080b09);
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand h1{
+    font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:2px;
+    font-size:20px; margin:0; color:var(--phosphor);
+    text-shadow:0 0 12px rgba(79,232,112,0.35);
+  }
+  .brand span{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel); }
+  .status-pill{
+    font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px;
+    padding:5px 10px; border:1px solid var(--panel-line); border-radius:2px;
+    color:var(--steel); text-transform:uppercase;
+  }
+  .status-pill.live{ color:var(--phosphor); border-color:var(--phosphor-dim); }
+
+  .tabs{ display:flex; max-width:980px; margin:0 auto; width:100%; border-bottom:1px solid var(--panel-line); }
+  .tab{
+    flex:1; text-align:center; padding:12px; cursor:pointer;
+    font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+    color:var(--steel); border-bottom:2px solid transparent; font-size:14px;
+  }
+  .tab.active{ color:var(--phosphor); border-bottom-color:var(--phosphor); }
+
+  main{ flex:1; display:flex; flex-direction:column; }
+  .panel{ display:none; max-width:980px; margin:0 auto; width:100%; }
+  .panel.active{ display:block; }
+
+  .stage-wrap{ position:relative; width:100%; background:#000; border-bottom:1px solid var(--panel-line); }
+  .stage{ position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden; }
+  video, canvas, img.frame{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+  canvas{ pointer-events:none; }
+  #drawLayer{ position:absolute; inset:0; pointer-events:auto; cursor:crosshair; touch-action:none; }
+
+  .placeholder{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; color:var(--steel); font-family:'Share Tech Mono',monospace;
+    font-size:12px; letter-spacing:1px; text-align:center; padding:20px; z-index:2;
+  }
+  .placeholder b{ color:var(--phosphor); font-family:'Orbitron',sans-serif; letter-spacing:2px; font-size:13px;}
+
+  .controls{ padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  button, .file-btn{
+    font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.5px;
+    font-size:14px; text-transform:uppercase;
+    padding:11px 16px; border-radius:2px; cursor:pointer;
+    background:var(--panel); color:var(--ink); border:1px solid var(--panel-line);
+    transition:border-color .15s, color .15s;
+    flex:1; min-width:130px; text-align:center;
+  }
+  button:hover, .file-btn:hover{ border-color:var(--phosphor-dim); color:var(--phosphor); }
+  button.primary{ border-color:var(--phosphor-dim); color:var(--phosphor); }
+  button.primary:hover{ background:rgba(79,232,112,0.08); }
+  button:disabled{ opacity:0.35; cursor:not-allowed; }
+  button.danger:hover{ border-color:#5c2323; color:var(--red); }
+  input[type=file]{ display:none; }
+
+  .hint{
+    font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--steel);
+    letter-spacing:0.5px; line-height:1.6; border-left:2px solid var(--panel-line); padding-left:10px;
+  }
+  .hint b{ color:var(--phosphor); }
+
+  /* library grid */
+  .lib-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr));
+    gap:10px; padding:4px 0;
+  }
+  .lib-item{
+    border:1px solid var(--panel-line); border-radius:3px; overflow:hidden;
+    background:var(--panel); cursor:pointer; position:relative;
+  }
+  .lib-item.selected{ border-color:var(--phosphor); box-shadow:0 0 0 1px var(--phosphor); }
+  .lib-item img{ width:100%; aspect-ratio:1; object-fit:cover; display:block; }
+  .lib-item .name{
+    font-family:'Share Tech Mono',monospace; font-size:10px; padding:4px; color:var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .lib-item .del{
+    position:absolute; top:2px; right:2px; background:rgba(8,11,9,0.8); color:var(--red);
+    border:none; font-size:12px; width:20px; height:20px; border-radius:2px; padding:0; min-width:0; flex:none;
+  }
+  .lib-empty{ font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--steel); padding:20px 0; text-align:center; }
+
+  /* results */
+  .results{ display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .result-row{
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    border:1px solid var(--panel-line); border-radius:3px; background:var(--panel);
+  }
+  .result-row.best{ border-color:var(--phosphor-dim); }
+  .result-row .rank{
+    font-family:'Orbitron',sans-serif; font-weight:900; font-size:14px; color:var(--steel); width:20px;
+  }
+  .result-row.best .rank{ color:var(--phosphor); }
+  .result-row .bar-wrap{ flex:1; }
+  .result-row .score{ font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--ink); }
+  .result-row .bar{ height:4px; background:var(--panel-line); border-radius:2px; margin-top:4px; overflow:hidden; }
+  .result-row .bar-fill{ height:100%; background:var(--phosphor); }
+  .result-row.best .bar-fill{ background:var(--phosphor); }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal{
+    background:var(--panel); border:1px solid var(--panel-line); border-radius:4px;
+    padding:20px; width:100%; max-width:340px;
+  }
+  .modal h3{ margin:0 0 12px; font-family:'Orbitron',sans-serif; font-size:14px; color:var(--phosphor); letter-spacing:1px; }
+  .modal input[type=text]{
+    width:100%; padding:10px; background:var(--bg); border:1px solid var(--panel-line);
+    color:var(--ink); font-family:'Rajdhani',sans-serif; font-size:15px; border-radius:2px; margin-bottom:14px;
+  }
+
+  footer{
+    max-width:980px; margin:0 auto; width:100%; padding:10px 16px 24px;
+    font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--steel); opacity:0.6;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>RECALL</h1>
+      <span>ITEM FINDER &middot; v1.0</span>
+    </div>
+    <div class="status-pill" id="modelStatus">MODEL: LOADING</div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="save">Save Item</div>
+    <div class="tab" data-tab="find">Find Item</div>
+    <div class="tab" data-tab="library">Library</div>
+  </div>
+
+  <main>
+
+    <!-- SAVE PANEL -->
+    <div class="panel active" id="panel-save">
+      <div class="stage-wrap">
+        <div class="stage" id="stageSave">
+          <video id="videoSave" playsinline muted></video>
+          <img class="frame" id="imgSave" style="display:none;">
+          <canvas id="overlaySave"></canvas>
+          <div id="drawLayerSave"></div>
+          <div class="placeholder" id="placeholderSave">
+            <b>NO IMAGE</b>
+            <div>Start the camera or load a photo, then drag a box around the item.</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="row">
+          <button class="primary" id="btnCameraSave">Start Camera</button>
+          <button id="btnCaptureSave" disabled>Capture Frame</button>
+        </div>
+        <div class="row">
+          <label class="file-btn" for="fileInputSave">Load Photo</label>
+          <input type="file" id="fileInputSave" accept="image/*,video/*">
+          <button class="danger" id="btnClearSave">Clear Box</button>
+        </div>
+        <div class="hint">
+          <b>HOW:</b> drag a box directly around the item (earphones, keys, whatever). Works on any object —
+          no fixed category list. Then tap <b>Save Selection</b> to name and store it.
+        </div>
+        <div class="row">
+          <button class="primary" id="btnSaveSelection" disabled>Save Selection</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIND PANEL -->
+    <div class="panel" id="panel-find">
+      <div class="controls" style="padding-bottom:0;">
+        <div class="hint" style="margin-bottom:4px;">
+          <b>STEP 1:</b> pick a saved item below (or import a signature file).
+        </div>
+        <div class="lib-grid" id="findLibGrid"></div>
+        <div class="row">
+          <label class="file-btn" for="fileInputImportFind">Import Signature (.json)</label>
+          <input type="file" id="fileInputImportFind" accept="application/json">
+        </div>
+      </div>
+
+      <div class="stage-wrap" style="margin-top:6px;">
+        <div class="stage" id="stageFind">
+          <video id="videoFind" playsinline muted></video>
+          <img class="frame" id="imgFind" style="display:none;">
+          <canvas id="overlayFind"></canvas>
+          <div class="placeholder" id="placeholderFind">
+            <b>NO SCENE</b>
+            <div>Load a photo of the area to search, then tap Search Scene.</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="hint" style="margin-bottom:0;"><b>STEP 2:</b> load the scene to search.</div>
+        <div class="row">
+          <button class="primary" id="btnCameraFind">Start Camera</button>
+          <button id="btnCaptureFind" disabled>Capture Frame</button>
+        </div>
+        <div class="row">
+          <label class="file-btn" for="fileInputFind">Load Photo</label>
+          <input type="file" id="fileInputFind" accept="image/*">
+        </div>
+        <div class="row">
+          <button class="primary" id="btnSearch" disabled>Search Scene</button>
+        </div>
+        <div id="searchStatus" class="hint" style="display:none;"></div>
+        <div class="results" id="results"></div>
+      </div>
+    </div>
+
+    <!-- LIBRARY PANEL -->
+    <div class="panel" id="panel-library">
+      <div class="controls">
+        <div class="hint" style="margin-bottom:4px;">Saved items are auto-stored in this browser. Export to back up or move to another device / GitHub.</div>
+        <div class="lib-grid" id="libGrid"></div>
+        <div class="row">
+          <button id="btnExportAll">Export All (.json)</button>
+          <label class="file-btn" for="fileInputImportLib">Import (.json)</label>
+          <input type="file" id="fileInputImportLib" accept="application/json">
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>All processing and storage stays in this browser. Nothing is uploaded.</footer>
+</div>
+
+<div class="modal-backdrop" id="nameModal">
+  <div class="modal">
+    <h3>NAME THIS ITEM</h3>
+    <input type="text" id="nameInput" placeholder="e.g. Black earphones" maxlength="40">
+    <div class="row">
+      <button id="btnNameCancel">Cancel</button>
+      <button class="primary" id="btnNameSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script>
+(function(){
+  const STORAGE_KEY = 'recall_items_v1';
+  let model = null;
+  let items = [];
+
+  // ---------------- storage ----------------
+  function loadItems(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      items = raw ? JSON.parse(raw) : [];
+    }catch(e){ items = []; }
+  }
+  function saveItems(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+    catch(e){ alert('Could not save to browser storage: ' + e.message); }
+  }
+  loadItems();
+
+  // ---------------- model ----------------
+  const modelStatus = document.getElementById('modelStatus');
+  if(typeof mobilenet === 'undefined' || typeof tf === 'undefined'){
+    modelStatus.textContent = 'MODEL: FAILED (CDN blocked)';
+  } else {
+    mobilenet.load({version:2, alpha:1.0}).then(m=>{
+      model = m;
+      modelStatus.textContent = 'MODEL: READY';
+      modelStatus.classList.add('live');
+    }).catch(err=>{
+      modelStatus.textContent = 'MODEL: FAILED';
+    });
+  }
+
+  // ---------------- tabs ----------------
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(t=>{
+    t.addEventListener('click', ()=>{
+      tabs.forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+      if(t.dataset.tab === 'library') renderLibrary();
+      if(t.dataset.tab === 'find') renderFindLib();
+    });
+  });
+
+  // =========================================================
+  // Shared helpers
+  // =========================================================
+  function cosineSim(a,b){
+    let dot=0, na=0, nb=0;
+    for(let i=0;i<a.length;i++){ dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
+    if(na===0||nb===0) return 0;
+    return dot/(Math.sqrt(na)*Math.sqrt(nb));
+  }
+
+  function colorHistFromCanvas(canvas){
+    const c = document.createElement('canvas');
+    c.width=16; c.height=16;
+    const cx = c.getContext('2d', {willReadFrequently:true});
+    cx.drawImage(canvas, 0,0,16,16);
+    const data = cx.getImageData(0,0,16,16).data;
+    const bins = new Float32Array(8*8*8);
+    for(let i=0;i<data.length;i+=4){
+      const r=data[i]>>5, g=data[i+1]>>5, b=data[i+2]>>5;
+      bins[r*64+g*8+b]++;
+    }
+    let sum=0; for(let i=0;i<bins.length;i++) sum+=bins[i];
+    if(sum>0) for(let i=0;i<bins.length;i++) bins[i]/=sum;
+    return bins;
+  }
+  function histSim(a,b){
+    let s=0; for(let i=0;i<a.length;i++) s+=Math.sqrt(a[i]*b[i]);
+    return s;
+  }
+
+  async function embedCrop(sourceEl, box){
+    // box: {x,y,w,h} in source's natural pixel coords
+    const crop = document.createElement('canvas');
+    crop.width = 224; crop.height = 224;
+    const cctx = crop.getContext('2d');
+    cctx.drawImage(sourceEl, box.x, box.y, box.w, box.h, 0, 0, 224, 224);
+    let embedding = null;
+    if(model){
+      const t = tf.tidy(()=>{
+        const imgT = tf.browser.fromPixels(crop);
+        return model.infer(imgT, true);
+      });
+      embedding = Array.from(await t.data());
+      t.dispose();
+    }
+    const hist = Array.from(colorHistFromCanvas(crop));
+    const thumb = crop.toDataURL('image/jpeg', 0.7);
+    return { embedding, hist, thumb };
+  }
+
+  function downloadJSON(obj, filename){
+    const blob = new Blob([JSON.stringify(obj)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  // =========================================================
+  // SAVE PANEL
+  // =========================================================
+  (function(){
+    const video = document.getElementById('videoSave');
+    const img = document.getElementById('imgSave');
+    const overlay = document.getElementById('overlaySave');
+    const ctx = overlay.getContext('2d');
+    const drawLayer = document.getElementById('drawLayerSave');
+    const placeholder = document.getElementById('placeholderSave');
+    const btnCamera = document.getElementById('btnCameraSave');
+    const btnCapture = document.getElementById('btnCaptureSave');
+    const btnClear = document.getElementById('btnClearSave');
+    const btnSaveSel = document.getElementById('btnSaveSelection');
+    const fileInput = document.getElementById('fileInputSave');
+
+    let stream = null;
+    let sourceEl = null; // the active visual element (video or img) currently displayed
+    let sourceIsVideo = false;
+    let box = null; // display coords {x,y,w,h}
+    let drawing = false, startX=0, startY=0;
+
+    function syncSize(){
+      const rect = (sourceIsVideo ? video : img).getBoundingClientRect();
+      overlay.width = rect.width; overlay.height = rect.height;
+    }
+    window.addEventListener('resize', syncSize);
+
+    async function startCamera(){
+      try{
+        if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+        video.srcObject = stream;
+        await video.play();
+        video.style.display='block'; img.style.display='none';
+        sourceEl = video; sourceIsVideo = true;
+        placeholder.style.display='none';
+        btnCapture.disabled = false;
+        syncSize();
+      }catch(e){ alert('Camera error: '+e.message); }
+    }
+    btnCamera.addEventListener('click', startCamera);
+
+    btnCapture.addEventListener('click', ()=>{
+      const c = document.createElement('canvas');
+      c.width = video.videoWidth; c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video,0,0);
+      img.src = c.toDataURL('image/jpeg',0.9);
+      img.onload = ()=>{
+        video.style.display='none'; img.style.display='block';
+        sourceEl = img; sourceIsVideo = false;
+        if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+        syncSize();
+      };
+    });
+
+    fileInput.addEventListener('change', ()=>{
+      const file = fileInput.files[0];
+      if(!file) return;
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      if(file.type.startsWith('video/')){
+        video.src = URL.createObjectURL(file);
+        video.style.display='block'; img.style.display='none';
+        sourceEl = video; sourceIsVideo = true;
+        video.play();
+        btnCapture.disabled = false;
+        placeholder.style.display='none';
+        video.onloadedmetadata = syncSize;
+      } else {
+        img.src = URL.createObjectURL(file);
+        img.onload = ()=>{
+          video.style.display='none'; img.style.display='block';
+          sourceEl = img; sourceIsVideo = false;
+          placeholder.style.display='none';
+          syncSize();
+        };
+      }
+    });
+
+    function getPos(e){
+      const rect = drawLayer.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: t.clientX-rect.left, y: t.clientY-rect.top };
+    }
+    drawLayer.addEventListener('pointerdown', (e)=>{
+      if(!sourceEl) return;
+      drawing = true;
+      const p = getPos(e);
+      startX = p.x; startY = p.y;
+      box = {x:startX, y:startY, w:0, h:0};
+    });
+    drawLayer.addEventListener('pointermove', (e)=>{
+      if(!drawing) return;
+      const p = getPos(e);
+      box = { x: Math.min(startX,p.x), y: Math.min(startY,p.y), w: Math.abs(p.x-startX), h: Math.abs(p.y-startY) };
+      drawBox();
+    });
+    window.addEventListener('pointerup', ()=>{
+      if(!drawing) return;
+      drawing = false;
+      if(box && box.w > 12 && box.h > 12){
+        btnSaveSel.disabled = false;
+      } else {
+        box = null;
+        btnSaveSel.disabled = true;
+      }
+      drawBox();
+    });
+
+    btnClear.addEventListener('click', ()=>{
+      box = null; btnSaveSel.disabled = true; drawBox();
+    });
+
+    function drawBox(){
+      ctx.clearRect(0,0,overlay.width, overlay.height);
+      if(!box) return;
+      ctx.strokeStyle = '#4fe870';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#4fe870'; ctx.shadowBlur = 6;
+      ctx.strokeRect(box.x, box.y, box.w, box.h);
+      ctx.shadowBlur = 0;
+    }
+
+    // modal
+    const modal = document.getElementById('nameModal');
+    const nameInput = document.getElementById('nameInput');
+    document.getElementById('btnNameCancel').addEventListener('click', ()=> modal.classList.remove('show'));
+
+    btnSaveSel.addEventListener('click', ()=>{
+      if(!box || !sourceEl) return;
+      nameInput.value = '';
+      modal.classList.add('show');
+      setTimeout(()=>nameInput.focus(), 50);
+    });
+
+    document.getElementById('btnNameSave').addEventListener('click', async ()=>{
+      const name = nameInput.value.trim() || 'Unnamed item';
+      modal.classList.remove('show');
+      // map display box -> natural pixel coords (object-fit:cover)
+      const natW = sourceIsVideo ? video.videoWidth : img.naturalWidth;
+      const natH = sourceIsVideo ? video.videoHeight : img.naturalHeight;
+      const dispW = overlay.width, dispH = overlay.height;
+      const scale = Math.max(dispW/natW, dispH/natH);
+      const rw = natW*scale, rh = natH*scale;
+      const ox = (dispW-rw)/2, oy = (dispH-rh)/2;
+      const nb = {
+        x: Math.max(0,(box.x-ox)/scale),
+        y: Math.max(0,(box.y-oy)/scale),
+        w: box.w/scale,
+        h: box.h/scale
+      };
+      const {embedding, hist, thumb} = await embedCrop(sourceEl, nb);
+      const entry = { id: 'item_'+Date.now(), name, embedding, hist, thumb, createdAt: Date.now() };
+      items.push(entry);
+      saveItems();
+      box = null; btnSaveSel.disabled = true; drawBox();
+      alert('Saved "'+name+'" to your library.');
+    });
+  })();
+
+  // =========================================================
+  // LIBRARY PANEL
+  // =========================================================
+  function renderLibrary(){
+    const grid = document.getElementById('libGrid');
+    grid.innerHTML = '';
+    if(items.length === 0){
+      grid.innerHTML = '<div class="lib-empty">No saved items yet. Use Save Item to add one.</div>';
+      return;
+    }
+    items.forEach(it=>{
+      const el = document.createElement('div');
+      el.className = 'lib-item';
+      el.innerHTML = `<img src="${it.thumb}"><div class="name">${escapeHtml(it.name)}</div><button class="del">&times;</button>`;
+      el.querySelector('.del').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(confirm('Delete "'+it.name+'"?')){
+          items = items.filter(x=>x.id!==it.id);
+          saveItems(); renderLibrary(); renderFindLib();
+        }
+      });
+      el.addEventListener('click', ()=>{
+        downloadJSON(it, it.name.replace(/[^a-z0-9]/gi,'_')+'.json');
+      });
+      grid.appendChild(el);
+    });
+  }
+  function escapeHtml(s){
+    const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  document.getElementById('btnExportAll').addEventListener('click', ()=>{
+    downloadJSON(items, 'recall_library_'+Date.now()+'.json');
+  });
+  document.getElementById('fileInputImportLib').addEventListener('change', (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        const incoming = Array.isArray(data) ? data : [data];
+        incoming.forEach(it=>{
+          if(!it.id) it.id = 'item_'+Date.now()+Math.random();
+          items.push(it);
+        });
+        saveItems(); renderLibrary(); renderFindLib();
+        alert('Imported '+incoming.length+' item(s).');
+      }catch(err){ alert('Invalid file: '+err.message); }
+    };
+    reader.readAsText(file);
+  });
+
+  // =========================================================
+  // FIND PANEL
+  // =========================================================
+  let selectedItem = null;
+
+  function renderFindLib(){
+    const grid = document.getElementById('findLibGrid');
+    grid.innerHTML = '';
+    if(items.length === 0){
+      grid.innerHTML = '<div class="lib-empty">No saved items. Save one first, or import a signature file.</div>';
+      return;
+    }
+    items.forEach(it=>{
+      const el = document.createElement('div');
+      el.className = 'lib-item' + (selectedItem && selectedItem.id===it.id ? ' selected' : '');
+      el.innerHTML = `<img src="${it.thumb}"><div class="name">${escapeHtml(it.name)}</div>`;
+      el.addEventListener('click', ()=>{
+        selectedItem = it;
+        renderFindLib();
+        updateSearchEnabled();
+      });
+      grid.appendChild(el);
+    });
+  }
+
+  document.getElementById('fileInputImportFind').addEventListener('change', (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        const it = Array.isArray(data) ? data[0] : data;
+        if(!it.id) it.id = 'item_'+Date.now();
+        selectedItem = it;
+        updateSearchEnabled();
+        alert('Loaded signature: '+it.name);
+      }catch(err){ alert('Invalid file: '+err.message); }
+    };
+    reader.readAsText(file);
+  });
+
+  (function(){
+    const video = document.getElementById('videoFind');
+    const img = document.getElementById('imgFind');
+    const overlay = document.getElementById('overlayFind');
+    const ctx = overlay.getContext('2d');
+    const placeholder = document.getElementById('placeholderFind');
+    const btnCamera = document.getElementById('btnCameraFind');
+    const btnCapture = document.getElementById('btnCaptureFind');
+    const fileInput = document.getElementById('fileInputFind');
+    const btnSearch = document.getElementById('btnSearch');
+    const searchStatus = document.getElementById('searchStatus');
+    const resultsEl = document.getElementById('results');
+
+    let stream = null;
+    let sourceEl = null;
+    let sourceIsVideo = false;
+    let sceneReady = false;
+
+    window.updateSearchEnabled = function(){
+      btnSearch.disabled = !(sceneReady && selectedItem);
+    };
+
+    function syncSize(){
+      const rect = (sourceIsVideo ? video : img).getBoundingClientRect();
+      overlay.width = rect.width; overlay.height = rect.height;
+    }
+    window.addEventListener('resize', syncSize);
+
+    async function startCamera(){
+      try{
+        if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+        video.srcObject = stream;
+        await video.play();
+        video.style.display='block'; img.style.display='none';
+        sourceEl = video; sourceIsVideo = true;
+        placeholder.style.display='none';
+        btnCapture.disabled = false;
+        sceneReady = false;
+        updateSearchEnabled();
+        syncSize();
+      }catch(e){ alert('Camera error: '+e.message); }
+    }
+    btnCamera.addEventListener('click', startCamera);
+
+    btnCapture.addEventListener('click', ()=>{
+      const c = document.createElement('canvas');
+      c.width = video.videoWidth; c.height = video.videoHeight;
+      c.getContext('2d').drawImage(video,0,0);
+      img.src = c.toDataURL('image/jpeg',0.9);
+      img.onload = ()=>{
+        video.style.display='none'; img.style.display='block';
+        sourceEl = img; sourceIsVideo = false;
+        if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+        sceneReady = true;
+        updateSearchEnabled();
+        syncSize();
+        ctx.clearRect(0,0,overlay.width,overlay.height);
+        resultsEl.innerHTML = '';
+      };
+    });
+
+    fileInput.addEventListener('change', ()=>{
+      const file = fileInput.files[0];
+      if(!file) return;
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+      img.src = URL.createObjectURL(file);
+      img.onload = ()=>{
+        video.style.display='none'; img.style.display='block';
+        sourceEl = img; sourceIsVideo = false;
+        placeholder.style.display='none';
+        sceneReady = true;
+        updateSearchEnabled();
+        syncSize();
+        ctx.clearRect(0,0,overlay.width,overlay.height);
+        resultsEl.innerHTML = '';
+      };
+    });
+
+    // generate candidate windows (multi-scale sliding windows) in natural pixel coords
+    function generateCandidates(natW, natH){
+      const boxes = [];
+      const scales = [0.28, 0.45, 0.65];
+      scales.forEach(scale=>{
+        const bw = natW*scale, bh = natH*scale;
+        const stepX = bw*0.6, stepY = bh*0.6;
+        for(let y=0; y+bh<=natH+1; y+=stepY){
+          for(let x=0; x+bw<=natW+1; x+=stepX){
+            boxes.push({x:Math.round(x), y:Math.round(y), w:Math.round(bw), h:Math.round(bh)});
+          }
+        }
+      });
+      return boxes;
+    }
+
+    function iou(a,b){
+      const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+      const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+      const iw=Math.max(0,x2-x1), ih=Math.max(0,y2-y1);
+      const inter=iw*ih;
+      const union=a.w*a.h+b.w*b.h-inter;
+      return union<=0?0:inter/union;
+    }
+
+    function toDisplayBox(box, natW, natH){
+      const dispW = overlay.width, dispH = overlay.height;
+      const scale = Math.max(dispW/natW, dispH/natH);
+      const rw = natW*scale, rh = natH*scale;
+      const ox = (dispW-rw)/2, oy = (dispH-rh)/2;
+      return { x: box.x*scale+ox, y: box.y*scale+oy, w: box.w*scale, h: box.h*scale };
+    }
+
+    btnSearch.addEventListener('click', async ()=>{
+      if(!selectedItem || !sourceEl) return;
+      btnSearch.disabled = true;
+      searchStatus.style.display = 'block';
+      searchStatus.textContent = 'SCANNING SCENE...';
+      resultsEl.innerHTML = '';
+      ctx.clearRect(0,0,overlay.width,overlay.height);
+
+      const natW = sourceIsVideo ? video.videoWidth : img.naturalWidth;
+      const natH = sourceIsVideo ? video.videoHeight : img.naturalHeight;
+      const candidates = generateCandidates(natW, natH);
+
+      const scored = [];
+      for(let i=0;i<candidates.length;i++){
+        const box = candidates[i];
+        searchStatus.textContent = 'SCANNING SCENE... ' + (i+1) + '/' + candidates.length;
+        const {embedding, hist} = await embedCrop(sourceEl, box);
+        let score = 0;
+        if(embedding && selectedItem.embedding){
+          score += cosineSim(embedding, selectedItem.embedding) * 0.75;
+        }
+        if(hist && selectedItem.hist){
+          score += histSim(hist, selectedItem.hist) * 0.25;
+        }
+        scored.push({box, score});
+        // yield to UI occasionally
+        if(i % 6 === 0) await new Promise(r=>setTimeout(r,0));
+      }
+
+      scored.sort((a,b)=>b.score-a.score);
+      // non-max suppression, keep top distinct matches
+      const kept = [];
+      for(const s of scored){
+        if(kept.length >= 3) break;
+        if(kept.some(k=>iou(k.box, s.box) > 0.3)) continue;
+        kept.push(s);
+      }
+
+      searchStatus.textContent = kept.length ? 'DONE — ' + kept.length + ' candidate area(s) found' : 'NO CANDIDATES FOUND';
+
+      // draw
+      kept.forEach((k,idx)=>{
+        const db = toDisplayBox(k.box, natW, natH);
+        const color = idx===0 ? '#4fe870' : '#ffb020';
+        drawResultBox(db, color, idx===0 ? 'MATCH' : ('#'+(idx+1)));
+      });
+
+      resultsEl.innerHTML = '';
+      kept.forEach((k,idx)=>{
+        const pct = Math.max(0, Math.min(100, Math.round(k.score*100)));
+        const row = document.createElement('div');
+        row.className = 'result-row' + (idx===0 ? ' best' : '');
+        row.innerHTML = `
+          <div class="rank">${idx+1}</div>
+          <div class="bar-wrap">
+            <div class="score">${idx===0 ? 'Best match' : 'Candidate'} &middot; ${pct}%</div>
+            <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+          </div>`;
+        resultsEl.appendChild(row);
+      });
+
+      btnSearch.disabled = false;
+    });
+
+    function drawResultBox(db, color, label){
+      const {x,y,w,h} = db;
+      const bl = 14;
+      ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+      ctx.shadowColor = color; ctx.shadowBlur = 6;
+      const corners = [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]];
+      corners.forEach(([cx,cy,sx,sy])=>{
+        ctx.beginPath();
+        ctx.moveTo(cx, cy+bl*sy); ctx.lineTo(cx,cy); ctx.lineTo(cx+bl*sx, cy);
+        ctx.stroke();
+      });
+      ctx.shadowBlur = 0;
+      ctx.font = "700 11px 'Share Tech Mono', monospace";
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y-18, tw+12, 16);
+      ctx.fillStyle = '#080b09';
+      ctx.fillText(label, x+6, y-6);
+    }
+  })();
+
+  renderLibrary();
+  renderFindLib();
+})();
+</script>
+</body>
+</html>
