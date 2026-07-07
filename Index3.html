@@ -14,115 +14,160 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
     body {
-      background: #f5f5f7;
-      color: #1d1d1f;
-      padding: 0 0 20px;
+      background: linear-gradient(145deg, #f0f2f5 0%, #e6e9f0 100%);
+      color: #1a1a2e;
+      padding: 0 0 30px;
       max-width: 500px;
       margin: 0 auto;
       min-height: 100vh;
+      position: relative;
     }
     header {
-      background: #fff;
-      padding: 12px 16px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid rgba(255,255,255,0.5);
       position: sticky;
       top: 0;
       z-index: 10;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     }
     h1 {
-      font-size: 1.4rem;
-      font-weight: 600;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #2b2d42, #4a4e69);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     button, .btn {
-      background: #007aff;
+      background: #4a6fa5;
       color: white;
       border: none;
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 10px 16px;
       font-size: 0.9rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: 0.2s;
+      transition: all 0.2s ease;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      box-shadow: 0 4px 10px rgba(74,111,165,0.2);
     }
-    button:active { opacity: 0.8; }
+    button:active {
+      transform: scale(0.96);
+      opacity: 0.9;
+    }
     .btn-outline {
-      background: transparent;
-      color: #007aff;
-      border: 1px solid #007aff;
+      background: rgba(255,255,255,0.7);
+      color: #2b2d42;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      backdrop-filter: blur(10px);
     }
-    .btn-danger { background: #ff3b30; }
-    .btn-small { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; }
+    .btn-danger {
+      background: #e07a5f;
+      box-shadow: 0 4px 10px rgba(224,122,95,0.3);
+    }
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      border-radius: 12px;
+    }
     .card {
-      background: white;
-      border-radius: 16px;
-      padding: 16px;
-      margin: 12px 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 24px;
+      padding: 18px;
+      margin: 14px 16px;
+      box-shadow: 0 10px 25px -8px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255,255,255,0.5);
     }
     .sector-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      padding: 0 16px;
+      gap: 14px;
+      padding: 10px 16px;
     }
     .sector-card {
-      background: white;
-      border-radius: 16px;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
       cursor: pointer;
-      transition: 0.2s;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.6);
     }
-    .sector-card:active { transform: scale(0.98); }
+    .sector-card:active {
+      transform: scale(0.97);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
     .sector-img {
       width: 100%;
       height: 120px;
       object-fit: cover;
-      background: #eee;
+      background: linear-gradient(135deg, #e0e0e0, #f5f5f5);
       display: block;
     }
     .sector-name {
-      padding: 10px;
-      font-weight: 600;
+      padding: 12px;
+      font-weight: 700;
       text-align: center;
+      color: #2b2d42;
+      font-size: 0.95rem;
     }
     .item-row {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
     }
     .item-thumb {
       width: 50px;
       height: 50px;
-      border-radius: 10px;
+      border-radius: 14px;
       object-fit: cover;
-      background: #e0e0e0;
+      background: #e9ecef;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.08);
     }
     .item-info {
       flex: 1;
     }
     .item-name {
-      font-weight: 600;
+      font-weight: 650;
+      color: #1a1a2e;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .badge {
-      padding: 2px 8px;
+      padding: 4px 10px;
       border-radius: 20px;
       font-size: 0.7rem;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
-    .badge-out { background: #ff3b30; color: white; }
-    .badge-in { background: #34c759; color: white; }
+    .badge-out {
+      background: #e07a5f22;
+      color: #c44536;
+      border: 1px solid #e07a5f55;
+    }
+    .badge-in {
+      background: #6a994e22;
+      color: #386641;
+      border: 1px solid #6a994e55;
+    }
     .flex-row {
       display: flex;
       gap: 8px;
@@ -130,54 +175,77 @@
     }
     .search-input {
       width: 100%;
-      padding: 12px 16px;
-      border-radius: 30px;
-      border: 1px solid #dcdcdc;
+      padding: 14px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,0.08);
       font-size: 1rem;
-      margin: 8px 0;
-      background: #fff;
+      margin: 10px 0;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+      color: #1a1a2e;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: #4a6fa5;
+      box-shadow: 0 0 0 3px rgba(74,111,165,0.2);
     }
     .modal {
       position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(5px);
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 20;
+      z-index: 100;
+      animation: fadeIn 0.2s ease;
     }
     .modal-content {
-      background: white;
-      border-radius: 20px;
-      padding: 20px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 28px;
+      padding: 24px;
       width: 90%;
       max-width: 400px;
       max-height: 80vh;
       overflow-y: auto;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.6);
     }
-    .hidden { display: none !important; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .hidden {
+      display: none !important;
+    }
     #scanner-container {
       width: 100%;
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
+      margin: 10px 0;
     }
-    input[type="file"] { display: none; }
-    .camera-btn {
-      background: #e9e9ef;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    hr {
+      margin: 16px 0;
+      border: 0.5px solid rgba(0,0,0,0.08);
     }
-    hr { margin: 12px 0; border: 0.5px solid #eee; }
+    label {
+      display: block;
+      margin-bottom: 12px;
+      font-weight: 600;
+      color: #2b2d42;
+    }
   </style>
 </head>
 <body>
 <header>
   <h1>📦 Spots</h1>
-  <div style="display:flex; gap:8px;">
+  <div style="display:flex; gap:10px;">
+    <button id="searchNavBtn" class="btn-outline btn-small">🔍</button>
     <button id="pullBtn" class="btn-outline btn-small" title="Pull from GitHub">⬇️</button>
     <button id="pushBtn" class="btn-outline btn-small" title="Push to GitHub">⬆️</button>
     <button id="scanBtn" class="btn-small">📷</button>
@@ -186,23 +254,22 @@
 </header>
 
 <div id="mainView">
-  <!-- Sector list -->
   <div id="sectorsContainer" class="sector-grid"></div>
   <div class="card" style="text-align:center;">
     <button id="addSectorBtn">➕ Add New Spot</button>
   </div>
 </div>
 
-<!-- Sector Detail View (hidden by default) -->
+<!-- Sector Detail View -->
 <div id="sectorDetailView" class="hidden">
   <div class="card">
     <button id="backToSectors" class="btn-outline btn-small">← Back</button>
-    <h2 id="detailSectorName"></h2>
-    <img id="detailSectorImg" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin:8px 0;">
+    <h2 id="detailSectorName" style="margin-top:8px;"></h2>
+    <img id="detailSectorImg" style="width:100%; max-height:200px; object-fit:cover; border-radius:18px; margin:10px 0;">
     <div class="flex-row">
       <button id="printBarcodeBtn" class="btn-outline btn-small">🏷️ Print Barcode</button>
       <button id="scanItemInSectorBtn" class="btn-small">📷 Scan Item</button>
-      <button id="moveFromSectorBtn" class="btn-outline btn-small">↗️ Move Item (scan dest)</button>
+      <button id="moveFromSectorBtn" class="btn-outline btn-small">↗️ Move Item</button>
     </div>
     <input type="text" id="itemSearchInSector" placeholder="Search items..." class="search-input">
   </div>
@@ -229,17 +296,15 @@
   <div class="modal-content">
     <h3>Scan Barcode</h3>
     <div id="scanner-container"></div>
-    <button id="stopScanner" class="btn-danger btn-small" style="margin-top:12px;">Stop Scanner</button>
-    <p id="scannerHint" style="font-size:0.8rem; margin-top:8px;"></p>
+    <button id="stopScanner" class="btn-danger btn-small" style="margin-top:14px;">Stop Scanner</button>
+    <p id="scannerHint" style="font-size:0.85rem; margin-top:10px; color:#555;"></p>
   </div>
 </div>
 
 <script>
-  // ========== CONFIGURATION ==========
-  // Hardcode your Discord webhook URL here, or leave empty.
-  const DISCORD_WEBHOOK_URL = '';
+  // ========== CONFIGURABLE VARIABLES ==========
+  let discordWebhookUrl = '';   // will be loaded from config
   
-  // Default GitHub repo settings (user will input in Settings)
   let GITHUB_OWNER = '';
   let GITHUB_REPO = '';
   let GITHUB_BRANCH = 'main';
@@ -250,8 +315,8 @@
   let sectors = [];
   let currentSectorId = null;
   let scannerInstance = null;
-  let scanCallback = null; // function(code) => void
-  let moveSourceItemId = null; // for move flow
+  let scanCallback = null;
+  let moveSourceItemId = null;
 
   // ========== UTILS ==========
   function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
@@ -261,7 +326,7 @@
     if (d) sectors = JSON.parse(d);
   }
   function saveConfig() {
-    const cfg = { GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TOKEN };
+    const cfg = { GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TOKEN, discordWebhookUrl };
     localStorage.setItem('homespot_config', JSON.stringify(cfg));
   }
   function loadConfig() {
@@ -272,6 +337,7 @@
       GITHUB_REPO = cfg.GITHUB_REPO || '';
       GITHUB_BRANCH = cfg.GITHUB_BRANCH || 'main';
       GITHUB_TOKEN = cfg.GITHUB_TOKEN || '';
+      discordWebhookUrl = cfg.discordWebhookUrl || '';
     }
   }
 
@@ -296,8 +362,8 @@
   }
 
   function sendDiscord(message) {
-    if (!DISCORD_WEBHOOK_URL) return;
-    fetch(DISCORD_WEBHOOK_URL, {
+    if (!discordWebhookUrl) return;
+    fetch(discordWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: message })
@@ -323,7 +389,7 @@
       const json = JSON.stringify(sectors, null, 2);
       const base64Content = btoa(unescape(encodeURIComponent(json)));
       let sha = null;
-      try { sha = await fetchFileSha(); } catch (e) { /* ignore */ }
+      try { sha = await fetchFileSha(); } catch (e) {}
       const body = {
         message: 'Manual inventory update',
         content: base64Content,
@@ -372,7 +438,7 @@
     const container = document.getElementById('sectorsContainer');
     container.innerHTML = sectors.map(s => `
       <div class="sector-card" data-id="${s.id}" onclick="openSector('${s.id}')">
-        ${s.photo ? `<img src="${s.photo}" class="sector-img">` : '<div class="sector-img" style="display:flex;align-items:center;justify-content:center;">📷</div>'}
+        ${s.photo ? `<img src="${s.photo}" class="sector-img">` : '<div class="sector-img" style="display:flex;align-items:center;justify-content:center;font-size:2rem;">📷</div>'}
         <div class="sector-name">${s.name}</div>
       </div>
     `).join('');
@@ -398,9 +464,9 @@
     const list = document.getElementById('itemsList');
     list.innerHTML = items.map(item => `
       <div class="item-row">
-        ${item.photo ? `<img src="${item.photo}" class="item-thumb">` : '<div class="item-thumb" style="display:flex;align-items:center;justify-content:center;">📦</div>'}
+        ${item.photo ? `<img src="${item.photo}" class="item-thumb">` : '<div class="item-thumb" style="display:flex;align-items:center;justify-content:center;background:#e9ecef;">📦</div>'}
         <div class="item-info">
-          <div class="item-name">${item.name} ${item.barcode ? '<span style="font-size:0.7rem;">('+item.barcode+')</span>' : ''}</div>
+          <div class="item-name">${item.name} ${item.barcode ? '<span style="font-size:0.7rem;color:#777;">('+item.barcode+')</span>' : ''}</div>
           <span class="badge ${item.removed ? 'badge-out' : 'badge-in'}">${item.removed ? 'OUT' : 'IN STOCK'}</span>
         </div>
         <div class="flex-row">
@@ -412,7 +478,7 @@
           <button class="btn-small btn-outline" onclick="startMoveItem('${item.id}')">↗️</button>
         </div>
       </div>
-    `).join('') || '<p>No items yet.</p>';
+    `).join('') || '<p style="text-align:center;color:#888;">No items yet.</p>';
   }
 
   function renderAll() {
@@ -470,6 +536,7 @@
     sector.items.push(item);
     saveToLocal();
     renderSectorDetail();
+    sendDiscord(`📦 Item "${item.name}" added to spot "${sector.name}"`);
     const takePic = confirm('Take photo of this item?');
     if (takePic) {
       const file = await selectImageFile();
@@ -480,7 +547,6 @@
         renderSectorDetail();
       }
     }
-    sendDiscord(`📦 Item "${item.name}" added to spot "${sector.name}"`);
   }
 
   function toggleItemStock(itemId) {
@@ -516,7 +582,6 @@
       const destSector = sectors.find(s => s.barcode === code);
       if (!destSector) { alert('Destination spot not found.'); return; }
       if (destSector.id === currentSectorId) { alert('Same spot.'); return; }
-      // Move item
       const sourceSector = sectors.find(s => s.id === currentSectorId);
       const movingItem = sourceSector.items.find(i => i.id === moveSourceItemId);
       sourceSector.items = sourceSector.items.filter(i => i.id !== moveSourceItemId);
@@ -570,21 +635,19 @@
     document.getElementById('modalContent').innerHTML = `
       <h3>Print Barcode</h3>
       <svg id="barcodeSvg"></svg>
-      <p style="margin-top:8px;">${sector.name} - ${sector.barcode}</p>
-      <button onclick="window.print();" class="btn-small">🖨️ Print</button>
+      <p style="margin-top:10px; font-weight:600;">${sector.name} - ${sector.barcode}</p>
+      <button onclick="window.print();" class="btn-small" style="margin-top:10px;">🖨️ Print</button>
       <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-outline btn-small">Close</button>
     `;
     modal.classList.remove('hidden');
     JsBarcode("#barcodeSvg", sector.barcode, { format: "CODE128", width: 2, height: 50, displayValue: true });
   }
 
-  // ========== SCAN ITEM IN SECTOR ==========
   function scanItemInCurrentSector() {
     startScanner((code) => {
       const sector = sectors.find(s => s.id === currentSectorId);
       const item = sector.items.find(i => i.barcode === code);
       if (!item) { alert('No item with that barcode in this spot.'); return; }
-      // Toggle stock or ask
       if (item.removed) {
         if (confirm(`Item "${item.name}" is currently OUT. Return to shelf?`)) toggleItemStock(item.id);
       } else {
@@ -595,7 +658,6 @@
     }, 'Scan item barcode');
   }
 
-  // ========== GLOBAL SEARCH ==========
   function performGlobalSearch() {
     const term = document.getElementById('globalSearch').value.toLowerCase();
     const results = [];
@@ -606,13 +668,12 @@
         }
       });
     });
-    const container = document.getElementById('searchResults');
-    container.innerHTML = results.map(r => `
-      <div class="item-row" style="cursor:pointer" onclick="openSector('${r.sector.id}')">
+    document.getElementById('searchResults').innerHTML = results.map(r => `
+      <div class="item-row" style="cursor:pointer;" onclick="openSector('${r.sector.id}')">
         <div>📍${r.sector.name}</div>
         <div>${r.item.name} ${r.item.removed ? '<span class="badge badge-out">OUT</span>' : ''}</div>
       </div>
-    `).join('') || '<p>No items found.</p>';
+    `).join('') || '<p style="text-align:center;color:#888;">No items found.</p>';
   }
 
   // ========== EVENT LISTENERS ==========
@@ -628,7 +689,7 @@
   document.getElementById('moveFromSectorBtn').addEventListener('click', () => {
     const sector = sectors.find(s => s.id === currentSectorId);
     if (!sector || sector.items.length === 0) { alert('No items to move.'); return; }
-    const itemId = prompt('Enter item ID or name to move (or select from list)');
+    const itemId = prompt('Enter item ID or name to move:');
     const item = sector.items.find(i => i.id === itemId || i.name === itemId);
     if (!item) { alert('Item not found.'); return; }
     startMoveItem(item.id);
@@ -650,17 +711,29 @@
   document.getElementById('stopScanner').addEventListener('click', closeScannerModal);
   document.getElementById('pushBtn').addEventListener('click', pushToGitHub);
   document.getElementById('pullBtn').addEventListener('click', pullFromGitHub);
+  document.getElementById('searchNavBtn').addEventListener('click', () => {
+    document.getElementById('mainView').classList.add('hidden');
+    document.getElementById('sectorDetailView').classList.add('hidden');
+    document.getElementById('searchView').classList.remove('hidden');
+    performGlobalSearch();
+  });
+  document.getElementById('backFromSearch').addEventListener('click', () => {
+    document.getElementById('searchView').classList.add('hidden');
+    document.getElementById('mainView').classList.remove('hidden');
+  });
   document.getElementById('settingsBtn').addEventListener('click', () => {
     const modal = document.getElementById('modal');
     document.getElementById('modalContent').innerHTML = `
-      <h3>Settings</h3>
+      <h3>⚙️ Settings</h3>
       <label>GitHub Owner: <input id="cfgOwner" value="${GITHUB_OWNER}" class="search-input"></label>
       <label>GitHub Repo: <input id="cfgRepo" value="${GITHUB_REPO}" class="search-input"></label>
       <label>Branch: <input id="cfgBranch" value="${GITHUB_BRANCH}" class="search-input"></label>
       <label>GitHub PAT: <input id="cfgToken" type="password" value="${GITHUB_TOKEN}" class="search-input"></label>
-      <label>Discord Webhook: <input id="cfgWebhook" value="${DISCORD_WEBHOOK_URL}" class="search-input"></label>
-      <button id="saveCfg" class="btn-small">Save</button>
-      <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-outline btn-small">Close</button>
+      <label>Discord Webhook URL: <input id="cfgWebhook" value="${discordWebhookUrl}" class="search-input"></label>
+      <div class="flex-row" style="justify-content:flex-end;">
+        <button id="saveCfg" class="btn-small">Save</button>
+        <button onclick="document.getElementById('modal').classList.add('hidden')" class="btn-outline btn-small">Close</button>
+      </div>
     `;
     modal.classList.remove('hidden');
     document.getElementById('saveCfg').addEventListener('click', () => {
@@ -668,29 +741,12 @@
       GITHUB_REPO = document.getElementById('cfgRepo').value;
       GITHUB_BRANCH = document.getElementById('cfgBranch').value || 'main';
       GITHUB_TOKEN = document.getElementById('cfgToken').value;
-      // Update Discord webhook (hardcoded constant might be overridden)
-      window.DISCORD_WEBHOOK_URL = document.getElementById('cfgWebhook').value;
+      discordWebhookUrl = document.getElementById('cfgWebhook').value;
       saveConfig();
       modal.classList.add('hidden');
+      alert('Settings saved!');
     });
   });
-
-  // Search view navigation
-  document.getElementById('backFromSearch').addEventListener('click', () => {
-    document.getElementById('searchView').classList.add('hidden');
-    document.getElementById('mainView').classList.remove('hidden');
-  });
-  // Add a search icon in header? We'll add a quick button by long press on title or just a button
-  const searchNavBtn = document.createElement('button');
-  searchNavBtn.textContent = '🔍';
-  searchNavBtn.className = 'btn-outline btn-small';
-  searchNavBtn.addEventListener('click', () => {
-    document.getElementById('mainView').classList.add('hidden');
-    document.getElementById('sectorDetailView').classList.add('hidden');
-    document.getElementById('searchView').classList.remove('hidden');
-    performGlobalSearch();
-  });
-  document.querySelector('header div').prepend(searchNavBtn);
 
   // Initial load
   loadConfig();
